@@ -1,0 +1,11 @@
+node_modules/
+dist/
+dev-dist/
+test-results/
+playwright-report/
+*.log
+.DS_Store
+
+# Spezifikation und Recherche bleiben lokal (nicht für ein öffentliches Repository gedacht)
+Input/
+Live-Implementierungsprompt.md

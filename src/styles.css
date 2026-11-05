@@ -584,6 +584,104 @@ legend {
   margin: 0;
 }
 
+.fact-line {
+  display: block;
+}
+
+.item-actions {
+  margin-bottom: var(--space-3);
+}
+
+.add-link {
+  margin-top: var(--space-3);
+}
+
+.plan-groups {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.plan-group > summary {
+  display: flex;
+  align-items: center;
+  min-height: var(--touch);
+  margin: calc(-1 * var(--space-2)) 0;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.notice {
+  border-color: var(--notice);
+  margin: 0;
+}
+
+/* Wochentage und Hindernisse im Assistenten */
+.weekday-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.weekday {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-width: var(--touch);
+  min-height: var(--touch);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-small);
+  cursor: pointer;
+}
+
+.weekday:has(input:checked) {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.weekday input {
+  accent-color: var(--accent);
+  margin: 0;
+}
+
+.coping-plans {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.coping-plans h2 {
+  margin: 0;
+}
+
+.coping {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* Tag wählen (Nachtragen) */
+.day-picker ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.day-picker .button {
+  padding: 0 var(--space-3);
+  font-weight: 500;
+}
+
+.day-picker .button[aria-pressed='true'] {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
 .error-screen {
   padding-top: var(--space-6);
 }
@@ -603,4 +701,13 @@ legend {
     animation: none !important;
     scroll-behavior: auto !important;
   }
+}
+
+.day-picker > summary {
+  list-style: none;
+  width: fit-content;
+}
+
+.day-picker > summary::-webkit-details-marker {
+  display: none;
 }

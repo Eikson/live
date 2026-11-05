@@ -8,6 +8,8 @@ export type FieldErrors<K extends string> = Partial<Record<K, FieldError>>;
 
 const { short, long } = appConfig.textLimits;
 
+export const MAX_COPING_PLANS = 3;
+
 function text(value: string | undefined | null): string {
   return (value ?? '').trim();
 }
@@ -125,7 +127,7 @@ export function normalizeHabitInput(input: HabitInput): { value: NormalizedHabit
     .map((p) => ({ obstacle: text(p.obstacle), response: text(p.response) }))
     .filter((p) => p.obstacle || p.response);
   let copingError: FieldError | undefined;
-  if (copingPlans.length > 3) copingError = 'TOO_LONG';
+  if (copingPlans.length > MAX_COPING_PLANS) copingError = 'TOO_LONG';
   else if (copingPlans.some((p) => !p.obstacle || !p.response)) copingError = 'REQUIRED';
   else if (copingPlans.some((p) => p.obstacle.length > long || p.response.length > long)) copingError = 'TOO_LONG';
 
@@ -165,16 +167,29 @@ export function hasErrors(errors: object): boolean {
   return Object.keys(errors).length > 0;
 }
 
-const LOWERCASE_STARTERS = new Set([
-  'nach', 'nachdem', 'vor', 'bevor', 'bei', 'beim', 'am', 'um', 'im', 'ich', 'sobald', 'wenn',
-  'morgens', 'mittags', 'abends', 'direkt', 'gleich', 'jeden', 'jede', 'jedes', 'wann', 'während',
+/** Zeitangaben wie „nach dem Mittagessen“ werden zu „es nach dem Mittagessen ist“. */
+const TIME_PHRASE_STARTERS = new Set([
+  'nach', 'vor', 'am', 'um', 'im', 'morgens', 'mittags', 'abends', 'direkt', 'gleich', 'kurz', 'jeden', 'jede',
+  'jedes', 'während',
 ]);
+/** „Beim Zähneputzen“ wird zu „ich beim Zähneputzen bin“. */
+const PLACE_PHRASE_STARTERS = new Set(['bei', 'beim']);
+/** Einleitungen, die im Wenn-Satz entfallen: „Sobald ich heimkomme“ → „ich heimkomme“. */
+const DROPPED_CONJUNCTIONS = /^(wenn|sobald|nachdem)\s+/i;
 
-/** „Nach dem Mittagessen“ → „nach dem Mittagessen“; Nomen bleiben groß. */
-function lowerFirstIfFunctionWord(value: string): string {
-  const stripped = value.replace(/^wenn\s+/i, '');
+const lowerFirst = (value: string) => value.charAt(0).toLowerCase() + value.slice(1);
+
+/**
+ * Formt einen Auslöser in einen Nebensatz für „Wenn …“ um. Nomen bleiben groß, unbekannte
+ * Formen bleiben unverändert. Der Vorschlag ist immer editierbar.
+ */
+function toIfClause(description: string): string {
+  const stripped = description.replace(DROPPED_CONJUNCTIONS, '');
   const first = stripped.split(/\s+/)[0]?.toLowerCase() ?? '';
-  return LOWERCASE_STARTERS.has(first) ? stripped.charAt(0).toLowerCase() + stripped.slice(1) : stripped;
+  if (TIME_PHRASE_STARTERS.has(first)) return `es ${lowerFirst(stripped)} ist`;
+  if (PLACE_PHRASE_STARTERS.has(first)) return `ich ${lowerFirst(stripped)} bin`;
+  if (first === 'ich') return lowerFirst(stripped);
+  return stripped;
 }
 
 /** Schlägt aus Auslöser und Handlung einen Wenn-dann-Satz vor. Der Vorschlag ist editierbar. */
@@ -183,11 +198,16 @@ export function suggestIntention(cue: Cue | undefined, actionText: string): Inte
   if (!cue || !thenText) return undefined;
   let ifText: string;
   if (cue.type === 'TIME' && !cue.description.trim()) ifText = `es ${cue.time ?? ''} Uhr ist`.replace(/\s+/g, ' ');
-  else ifText = lowerFirstIfFunctionWord(cue.description.trim());
+  else ifText = toIfClause(cue.description.trim());
   if (!ifText) return undefined;
   return { ifText, thenText };
 }
 
 export function formatIntention(intention: Intention): string {
   return `Wenn ${intention.ifText}, dann ${intention.thenText}.`;
+}
+
+/** „Wenn Regen dazwischenkommt, dann 5 Minuten Treppe.“ */
+export function formatCopingPlan(plan: CopingPlan): string {
+  return `Wenn ${plan.obstacle} dazwischenkommt, dann ${plan.response}.`;
 }

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  formatCopingPlan,
   formatIntention,
   normalizeGoalInput,
   normalizeHabitInput,
@@ -76,12 +77,21 @@ describe('planning', () => {
       'REQUIRED',
     );
     expect(normalizeHabitInput(build({ copingPlans: [{ obstacle: '', response: '' }] })).value.copingPlans).toEqual([]);
+    expect(formatCopingPlan({ obstacle: 'Regen', response: '5 Minuten Treppe' })).toBe(
+      'Wenn Regen dazwischenkommt, dann 5 Minuten Treppe.',
+    );
   });
 
   it('schlägt einen lesbaren Wenn-dann-Satz vor', () => {
     const routine = suggestIntention({ type: 'ROUTINE', description: 'Nach dem Mittagessen' }, '10 Minuten spazieren');
-    expect(routine).toEqual({ ifText: 'nach dem Mittagessen', thenText: '10 Minuten spazieren' });
-    expect(formatIntention(routine!)).toBe('Wenn nach dem Mittagessen, dann 10 Minuten spazieren.');
+    expect(routine).toEqual({ ifText: 'es nach dem Mittagessen ist', thenText: '10 Minuten spazieren' });
+    expect(formatIntention(routine!)).toBe('Wenn es nach dem Mittagessen ist, dann 10 Minuten spazieren.');
+
+    const place = suggestIntention({ type: 'ROUTINE', description: 'Beim Zähneputzen' }, 'auf einem Bein stehen');
+    expect(place?.ifText).toBe('ich beim Zähneputzen bin');
+
+    const since = suggestIntention({ type: 'EVENT', description: 'Sobald ich im Zug sitze' }, 'lesen');
+    expect(since?.ifText).toBe('ich im Zug sitze');
 
     const event = suggestIntention({ type: 'EVENT', description: 'Wenn ich nach Hause komme' }, 'Schuhe ausziehen');
     expect(event?.ifText).toBe('ich nach Hause komme');

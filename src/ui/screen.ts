@@ -2,6 +2,8 @@ import type { AppContext } from '../app/context';
 
 export interface ScreenEnv {
   ctx: AppContext;
+  /** Parameter der aktuellen Route, z. B. `ziel` bei „gewohnheit-neu“. */
+  params: URLSearchParams;
   /** Nach dem ersten Start zu „Heute“ wechseln. */
   onboardingDone(): void;
 }

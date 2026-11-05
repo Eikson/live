@@ -2,7 +2,7 @@
 
 Live ist eine private, installierbare PWA ohne Backend. Alle Daten liegen in IndexedDB auf dem Gerät. Es gibt keine Netzwerkabhängigkeit, keine externen Fonts oder CDNs, keine Analytics und keine Telemetrie.
 
-Dieses Dokument wächst mit den Schritten. Stand: Schritt 2 (erste Schleife).
+Dieses Dokument wächst mit den Schritten. Stand: Schritt 3 (Planung).
 
 ## Schichten
 
@@ -45,6 +45,14 @@ Alle Datensätze haben stabile IDs, `createdAt` und `updatedAt`. Löschbare Date
 
 Ein Habit speichert nur seinen aktuellen Stand. Wie es an einem früheren Tag aussah (Status, Plan, Gewicht), leitet `buildTimeline` aus dem Ereignisprotokoll ab. So bleibt eine Planänderung heute ohne Wirkung auf die Bewertung vergangener Tage.
 
+## Bildschirme und Routen
+
+Der Router arbeitet über den Hash (`#/heute`, `#/plan`, …, siehe E-005). Assistenten haben eigene Routen und bekommen Parameter über die Abfrage im Hash, z. B. `#/gewohnheit-neu?ziel=<id>`. Die Tab-Leiste markiert bei diesen Routen den Bereich „Plan“.
+
+- `src/ui/wizard.ts`: gemeinsamer Rahmen für Assistenten (Fortschritt, Zurück/Weiter, Fehlermeldung je Feld, Schutz vor Doppeltipp beim Speichern)
+- `src/ui/habit-steps.ts`: die Schritte für Ziel und Gewohnheit, genutzt vom ersten Start, von „+ Ziel“ und von „+ Gewohnheit“
+- „Heute“ hält den gewählten Tag nur im Bildschirm. Nachtragen lädt dieselbe Sicht für einen der letzten sieben Tage.
+
 ## Transaktionen
 
 - `commit(ChangeSet)` schreibt alle betroffenen Stores in **einer** Transaktion: alles oder nichts. Der erste Start legt so Ziel, Habit, Ereignisse und Abschluss gemeinsam an.
@@ -70,8 +78,8 @@ Bereits umgesetzt ist die Integration (30-Tage-Fenster, Eintritt ab 80 %, Austri
 ## Tests
 
 - `tests/unit/`: Domain-Logik (Datum inklusive Sommerzeit, Planung, Status, Check-in, Erfüllung, Integration)
-- `tests/integration/`: Repository und Use Cases gegen fake-indexeddb (Transaktionen, eindeutiger Index, Migrationen, erste Schleife)
-- `tests/e2e/`: Playwright in Chromium mit Pixel-8-Viewport und Desktop
+- `tests/integration/`: Repository und Use Cases gegen fake-indexeddb (Transaktionen, eindeutiger Index, Migrationen, erste Schleife, Planung)
+- `tests/e2e/`: Playwright in Chromium mit Pixel-8-Viewport und Desktop; gemeinsame Abläufe in `tests/e2e/helpers.ts`
 
 ## Grenzen der PWA
 

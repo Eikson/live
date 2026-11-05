@@ -16,6 +16,9 @@ const TABS: { route: Route; label: string; icon: string[] }[] = [
   { route: 'verlauf', label: de.nav.history, icon: icons.history },
 ];
 
+/** Unterseiten, die zu einem Tab gehören. */
+const TAB_OF: Partial<Record<Route, Route>> = { 'ziel-neu': 'plan', 'gewohnheit-neu': 'plan' };
+
 export function createShell(): Shell {
   const gear = h('a', { class: 'icon-button', href: routeHref('einstellungen'), 'aria-label': de.nav.settings });
   gear.append(icon(icons.gear));
@@ -47,8 +50,9 @@ export function createShell(): Shell {
       nav.hidden = onboarding;
       gear.hidden = onboarding;
       root.classList.toggle('is-onboarding', onboarding);
+      const tab = TAB_OF[route] ?? route;
       for (const a of links) {
-        if (a.dataset.route === route) a.setAttribute('aria-current', 'page');
+        if (a.dataset.route === tab) a.setAttribute('aria-current', 'page');
         else a.removeAttribute('aria-current');
       }
       if (route === 'einstellungen') gear.setAttribute('aria-current', 'page');

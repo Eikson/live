@@ -1,4 +1,5 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
+import { confirmation, next, onboard } from './helpers';
 
 // Service Worker aus: sonst liefert der Cache beim Neuladen evtl. eine ältere Version aus.
 test.use({ serviceWorkers: 'block' });
@@ -6,46 +7,6 @@ test.use({ serviceWorkers: 'block' });
 test.beforeEach(async ({ page }) => {
   await page.clock.setFixedTime(new Date('2026-11-05T09:00:00+01:00'));
 });
-
-const HABIT = '10 Minuten spazieren';
-
-async function next(page: Page) {
-  await page.getByRole('button', { name: 'Weiter' }).click();
-}
-
-/** Erster Start mit den Pflichtangaben; optionale Fragen werden übersprungen. */
-async function onboard(page: Page) {
-  await page.goto('/');
-  await expect(page.getByRole('heading', { level: 1 })).toContainText('Wähle etwas, das dir selbst wichtig ist');
-  await page.getByRole('button', { name: "Los geht's" }).click();
-
-  await page.getByRole('textbox', { name: 'Was möchtest du in deinem Alltag verändern?' }).fill('Mehr Bewegung');
-  await next(page);
-  await next(page); // Warum (optional)
-  await next(page); // Woran merke ich es (optional)
-
-  await page.getByRole('textbox', { name: 'Was tust du konkret?' }).fill(HABIT);
-  await next(page);
-
-  await expect(page.getByRole('radio', { name: 'Nach einer Routine' })).toBeChecked();
-  await page.getByRole('textbox', { name: 'Nach welcher Routine?' }).fill('Nach dem Mittagessen');
-  await next(page);
-
-  await page.getByRole('textbox', { name: 'Was ist die kleinste Version davon?' }).fill('2 Minuten vor die Tür');
-  await next(page);
-
-  await expect(page.getByRole('heading', { name: 'Dein Plan' })).toBeVisible();
-  await expect(page.locator('[data-role="plan-sentence"]')).toContainText('nach dem Mittagessen');
-  await page.getByRole('button', { name: 'Plan speichern' }).click();
-
-  await expect(page.getByRole('heading', { level: 1 })).toContainText('Heute');
-  const card = page.locator('article.habit-card');
-  await expect(card).toHaveCount(1);
-  await expect(card.getByRole('heading', { name: HABIT })).toBeVisible();
-  return card;
-}
-
-const confirmation = (page: Page) => page.locator('[data-role="confirmation"]');
 
 test('erster Start führt zu „Heute“, Check-in bleibt nach dem Neuladen erhalten', async ({ page }) => {
   const card = await onboard(page);

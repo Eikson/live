@@ -32,7 +32,7 @@ Die Integrationsberechnung (Abschnitt Score-Logik) war für Schritt 6 vorgesehen
 
 ## E-008 Umfang des ersten Starts in Schritt 2
 
-Der erste Start fragt Ziel, Handlung, Auslöser, Wenn-dann-Satz, Minimalversion und Gewicht ab. Neue Habits sind zunächst täglich geplant. Hindernisplan und Wochentage folgen in Schritt 3, Gegen-Habits in Schritt 5.
+Der erste Start fragt Ziel, Handlung, Auslöser, Wenn-dann-Satz, Minimalversion und Gewicht ab. Seit Schritt 3 gehören Rhythmus (täglich oder Wochentage) und bis zu drei optionale Hindernispläne dazu. Gegen-Habits folgen in Schritt 5.
 
 ## E-009 Basis-Pfad für GitHub Pages
 
@@ -53,3 +53,23 @@ Ein Check-in wird per `upsertCheckIn` in einer einzigen Transaktion gelesen und 
 ## E-013 Icons
 
 Das Icon ist ein eigenes SVG (`public/icon.svg`): eine ansteigende Linie in Petrol auf hellem Grund. Die PNG-Varianten (192, 512, maskierbar, Apple) erzeugt `npm run icons` lokal mit dem ohnehin installierten Playwright-Chromium. Das optionale `@vite-pwa/assets-generator` ist dafür nicht nötig.
+
+## E-014 Assistenten als eigene Routen
+
+„+ Ziel“ und „+ Gewohnheit“ öffnen eigene Routen (`#/ziel-neu`, `#/gewohnheit-neu?ziel=<id>`) statt eines Dialogs. Sie nutzen dieselben Schritte wie der erste Start. Nach dem Speichern eines Ziels geht es direkt zur ersten Gewohnheit dafür, damit kein Ziel ohne Handlung entsteht. Abbrechen ist im ersten Schritt möglich und führt zurück zum Plan; ein bereits gespeichertes Ziel bleibt dann ohne Gewohnheit im Plan stehen.
+
+## E-015 Neue Gewohnheit an der Aufbau-Grenze
+
+Sind beide Plätze im Aufbau belegt, sagt der letzte Schritt des Assistenten das vorher und speichert die Gewohnheit als Entwurf. Im Plan steht sie unter „Entwürfe“. „Aktivieren“ erscheint nur, wenn ein Platz frei ist; sonst steht dort ein ruhiger Satz, warum es gerade nicht geht.
+
+## E-016 Nachtragen über „Heute“
+
+Nachtragen passiert auf „Heute“ über „Tag wechseln“: Es zeigt die letzten sieben Tage und heute. Der gewählte Tag wird nicht gespeichert; beim nächsten Öffnen zeigt „Heute“ wieder den heutigen Tag. Für vergangene Tage lauten Überschrift und Bestätigungen anders („Nachtragen“, „An diesem Tag hat es nicht gepasst.“). Angezeigt werden nur Habits, die an diesem Tag aktiv waren.
+
+## E-017 „Trotzdem gemacht“ lässt sich zurücknehmen
+
+An einem nicht geplanten Tag gibt es statt der drei Knöpfe nur „Trotzdem gemacht“. Der Eintrag wird als nicht geplant markiert und zählt nicht im Score. Weil es dafür kein „Ändern“ mit Alternativen gibt, bietet die Karte „Rückgängig“; das legt eine Löschmarkierung an.
+
+## E-018 Vorschlag für den Wenn-dann-Satz
+
+Der Vorschlag entsteht aus dem Auslöser nach festen Mustern ohne KI: Zeitangaben werden zu „es … ist“ („Nach dem Mittagessen“ → „Wenn es nach dem Mittagessen ist“), Ortsangaben mit „bei/beim“ zu „ich … bin“, einleitendes „Wenn/Sobald/Nachdem“ entfällt („Sobald ich nach Hause komme“ → „Wenn ich nach Hause komme“), eine Uhrzeit ohne Beschreibung wird zu „Wenn es 7:30 Uhr ist“. Unbekannte Formen bleiben unverändert. Der Dann-Teil ist die Handlung. Solange du den Satz nicht selbst änderst, wird der Vorschlag gespeichert.

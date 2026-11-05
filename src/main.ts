@@ -8,9 +8,11 @@ import { isIndexedDbAvailable, requestPersistentStorage } from './platform/stora
 import { setupServiceWorker } from './platform/sw-update';
 import { applyCachedTheme, applyTheme } from './platform/theme';
 import { h } from './ui/dom';
-import { navigate, parseRoute, type Route } from './ui/router';
+import { navigate, parseParams, parseRoute, routeHref, type Route } from './ui/router';
 import type { Screen, ScreenEnv } from './ui/screen';
 import { renderStorageError } from './ui/screens/error';
+import { goalNewScreen } from './ui/screens/goal-new';
+import { habitNewScreen } from './ui/screens/habit-new';
 import { historyScreen } from './ui/screens/history';
 import { onboardingScreen } from './ui/screens/onboarding';
 import { planScreen } from './ui/screens/plan';
@@ -24,6 +26,8 @@ const SCREENS: Record<Route, Screen> = {
   verlauf: historyScreen,
   einstellungen: settingsScreen,
   start: onboardingScreen,
+  'ziel-neu': goalNewScreen,
+  'gewohnheit-neu': habitNewScreen,
 };
 
 /** Seiten, die bei einem Tageswechsel neu aufgebaut werden (keine Formulare mit offenen Eingaben). */
@@ -76,6 +80,7 @@ async function start(): Promise<void> {
 
   const env: ScreenEnv = {
     ctx,
+    params: new URLSearchParams(),
     onboardingDone() {
       onboarded = true;
       navigate('heute', { replace: true });
@@ -86,14 +91,17 @@ async function start(): Promise<void> {
     let route = parseRoute(location.hash) ?? 'heute';
     if (!onboarded && route !== 'start') route = 'start';
     if (onboarded && route === 'start') route = 'heute';
-    if (`#/${route}` !== location.hash) history.replaceState(null, '', `#/${route}`);
+    // Parameter (z. B. `?ziel=…`) bleiben erhalten, solange die Route selbst stimmt.
+    if (parseRoute(location.hash) !== route || !location.hash.startsWith(`#/${route}`)) {
+      history.replaceState(null, '', routeHref(route));
+    }
 
     const token = ++renderToken;
     currentRoute = route;
     renderedDay = today(ctx.clock);
     shell.setRoute(route);
     try {
-      const view = await SCREENS[route](env);
+      const view = await SCREENS[route]({ ...env, params: parseParams(location.hash) });
       if (token !== renderToken) return; // inzwischen weiter navigiert
       shell.main.replaceChildren(view);
     } catch {

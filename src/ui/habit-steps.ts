@@ -10,11 +10,11 @@ import {
   type HabitInput,
 } from '../domain/planning';
 import { scoringConfig } from '../domain/scoring/config';
-import type { CopingPlan, Cue, CueType, Intention, Schedule } from '../domain/types';
+import type { CopingPlan, Cue, CueType, Habit, Intention, Schedule } from '../domain/types';
 import { de } from '../i18n/de';
 import { h, setFieldError, uid } from './dom';
 import { WEEK_ORDER } from './format';
-import { message, textField, type TextField, type Wizard } from './wizard';
+import { message, textField, type Check, type Wizard } from './wizard';
 
 /**
  * Schritte für Ziele und Gewohnheiten, gemeinsam genutzt vom ersten Start und von
@@ -81,6 +81,11 @@ export interface HabitDraft {
   /** Erst gesetzt, wenn der Vorschlag bearbeitet wurde. */
   intention?: Intention;
   editingIntention: boolean;
+  /**
+   * Beim Bearbeiten: Der Wenn-dann-Satz ist fest und wird immer als Feld gezeigt. Änderungen am
+   * Auslöser ersetzen ihn nicht; sind beide Teile leer, wird er entfernt.
+   */
+  fixedIntention?: boolean;
   copingPlans: CopingPlan[];
   weight: number;
 }
@@ -141,6 +146,70 @@ export function habitInputOf(d: HabitDraft): Omit<HabitInput, 'kind' | 'goalId'>
   };
 }
 
+/** Ein Habit beim Bearbeiten als Formular-Entwurf. */
+export function habitDraftOf(habit: Habit): HabitDraft {
+  return {
+    actionText: habit.actionText,
+    cueType: habit.cue?.type ?? 'ROUTINE',
+    cueDescription: habit.cue?.description ?? '',
+    cueTime: habit.cue?.time ?? '',
+    scheduleType: habit.schedule.type,
+    days: habit.schedule.type === 'WEEKDAYS' ? [...habit.schedule.days] : [],
+    minimumText: habit.minimumText ?? '',
+    intention: habit.intention ? { ...habit.intention } : { ifText: '', thenText: '' },
+    editingIntention: true,
+    fixedIntention: true,
+    copingPlans: habit.copingPlans.map((p) => ({ ...p })),
+    weight: habit.weight,
+  };
+}
+
+/** Was neu gezeichnet werden kann: der Assistent oder das Bearbeiten-Formular. */
+export interface FormHost {
+  root: HTMLElement;
+  render(): void;
+}
+
+/** Ein Abschnitt eines Formulars mit eigener Prüfung. */
+export interface FormPart {
+  nodes: (Node | null)[];
+  check: Check;
+}
+
+/** Prüft alle Abschnitte und liefert das erste fehlerhafte Feld. */
+export function checkAll(parts: readonly FormPart[]): HTMLElement | undefined {
+  let first: HTMLElement | undefined;
+  for (const p of parts) first ??= p.check() ?? undefined;
+  return first;
+}
+
+function step(w: Wizard, heading: string, parts: FormPart[], before: (Node | null)[] = [], submitLabel?: string) {
+  return w.frame(heading, [...before, ...parts.flatMap((p) => p.nodes)], () => checkAll(parts), submitLabel);
+}
+
+/** Handlung oder Minimalversion als Feld. */
+export function habitTextPart(
+  d: HabitDraft,
+  field: 'actionText' | 'minimumText',
+  opts: { label: string; hint: string; hiddenLabel?: boolean },
+): FormPart {
+  const f = textField({
+    ...opts,
+    value: d[field],
+    max: appConfig.textLimits.short,
+    name: field,
+    onInput: (v) => (d[field] = v),
+  });
+  return {
+    nodes: [f.field],
+    check: () => {
+      const msg = message(normalizeHabitInput(rawInput(d)).errors[field]);
+      f.showError(msg);
+      return msg ? f.input : undefined;
+    },
+  };
+}
+
 /** Handlung oder Minimalversion. */
 export function habitTextStep(
   w: Wizard,
@@ -150,20 +219,8 @@ export function habitTextStep(
   hint: string,
   context?: string,
 ): HTMLElement {
-  const f = textField({
-    label: heading,
-    hiddenLabel: true,
-    hint,
-    value: d[field],
-    max: appConfig.textLimits.short,
-    name: field,
-    onInput: (v) => (d[field] = v),
-  });
-  return w.frame(heading, [context ? h('p', { class: 'muted' }, context) : null, f.field], () => {
-    const msg = message(normalizeHabitInput(rawInput(d)).errors[field]);
-    f.showError(msg);
-    return msg ? f.input : undefined;
-  });
+  const part = habitTextPart(d, field, { label: heading, hint, hiddenLabel: true });
+  return step(w, heading, [part], [context ? h('p', { class: 'muted' }, context) : null]);
 }
 
 function radio(name: string, value: string, label: string, checked: boolean, onchange: () => void): HTMLElement {
@@ -177,6 +234,15 @@ function radio(name: string, value: string, label: string, checked: boolean, onc
 
 /** Auslöser (Routine, Ereignis, Uhrzeit – die Uhrzeit ist nie Pflicht) und Rhythmus. */
 export function cueStep(w: Wizard, d: HabitDraft): HTMLElement {
+  return step(w, t.cueTitle, [cuePart(w, d)]);
+}
+
+/** Ein geänderter Auslöser ersetzt den vorgeschlagenen Wenn-dann-Satz, nie einen festen. */
+function cueChanged(d: HabitDraft): void {
+  if (!d.fixedIntention) d.intention = undefined;
+}
+
+export function cuePart(w: FormHost, d: HabitDraft): FormPart {
   const rerenderFocus = (selector: string) => {
     w.render();
     w.root.querySelector<HTMLInputElement>(selector)?.focus();
@@ -184,7 +250,7 @@ export function cueStep(w: Wizard, d: HabitDraft): HTMLElement {
   const cueRadios = CUE_TYPES.map((type) =>
     radio('cueType', type, t.cueTypes[type], d.cueType === type, () => {
       d.cueType = type;
-      d.intention = undefined;
+      cueChanged(d);
       rerenderFocus(`input[name="cueType"][value="${type}"]`);
     }),
   );
@@ -197,7 +263,7 @@ export function cueStep(w: Wizard, d: HabitDraft): HTMLElement {
     name: 'cueDescription',
     onInput: (v) => {
       d.cueDescription = v;
-      d.intention = undefined;
+      cueChanged(d);
     },
   });
   const timeId = uid('time');
@@ -209,7 +275,7 @@ export function cueStep(w: Wizard, d: HabitDraft): HTMLElement {
     'aria-describedby': `${timeId}-error`,
     oninput: (e) => {
       d.cueTime = (e.target as HTMLInputElement).value;
-      d.intention = undefined;
+      cueChanged(d);
     },
   });
   time.value = d.cueTime;
@@ -260,16 +326,15 @@ export function cueStep(w: Wizard, d: HabitDraft): HTMLElement {
         )
       : null;
 
-  return w.frame(
-    t.cueTitle,
-    [
+  return {
+    nodes: [
       h('fieldset', null, h('legend', null, t.cueTypeLabel), h('div', { class: 'choices' }, cueRadios)),
       timeField,
       description.field,
       h('fieldset', null, h('legend', null, t.rhythmLabel), h('div', { class: 'choices' }, rhythmRadios)),
       daysField,
     ],
-    () => {
+    check: () => {
       const errors = normalizeHabitInput(rawInput(d)).errors;
       const err = errors.cue;
       let first: HTMLElement | undefined;
@@ -296,60 +361,87 @@ export function cueStep(w: Wizard, d: HabitDraft): HTMLElement {
       }
       return first;
     },
-  );
+  };
 }
 
 /** Wenn-dann-Satz (Vorschlag, editierbar), optionale Hindernispläne und Gewicht. */
 export function planStep(w: Wizard, d: HabitDraft, opts: { submitLabel: string; note?: string }): HTMLElement {
+  const parts = [intentionPart(w, d), copingPart(w, d), weightPart(d)];
+  const minimum = h('p', { class: 'muted' }, de.today.minimum(d.minimumText.trim()));
+  const nodes = [...parts[0]!.nodes, minimum, ...parts[1]!.nodes, ...parts[2]!.nodes];
+  if (opts.note) nodes.push(h('p', { class: 'card notice', 'data-role': 'draft-note' }, opts.note));
+  return w.frame(t.planTitle, nodes, () => checkAll(parts), opts.submitLabel);
+}
+
+/**
+ * Wenn-dann-Satz: im Assistenten als Vorschlag mit „ändern“, beim Bearbeiten (`fixedIntention`)
+ * immer als zwei Felder. Beim Bearbeiten entfernen zwei leere Felder den Satz.
+ */
+export function intentionPart(w: FormHost, d: HabitDraft): FormPart {
   const proposal = d.intention ?? suggestion(d);
-  const body: (Node | null)[] = [];
-
-  let ifField: TextField | undefined;
-  let thenField: TextField | undefined;
-  if (d.editingIntention || !proposal) {
-    const current = proposal ?? { ifText: '', thenText: d.actionText.trim() };
-    d.intention = current;
-    ifField = textField({
-      label: t.planIf,
-      value: current.ifText,
-      max: appConfig.textLimits.long,
-      name: 'ifText',
-      onInput: (v) => (d.intention = { ...d.intention!, ifText: v }),
-    });
-    thenField = textField({
-      label: t.planThen,
-      value: current.thenText,
-      max: appConfig.textLimits.long,
-      name: 'thenText',
-      onInput: (v) => (d.intention = { ...d.intention!, thenText: v }),
-    });
-    body.push(h('div', { class: 'card wizard' }, ifField.field, thenField.field));
-  } else {
-    body.push(
-      h(
-        'div',
-        { class: 'card' },
-        h('p', { class: 'plan-sentence', 'data-role': 'plan-sentence' }, formatIntention(proposal)),
+  if (!d.editingIntention && proposal) {
+    return {
+      nodes: [
         h(
-          'button',
-          {
-            type: 'button',
-            class: 'button link',
-            onclick: () => {
-              d.intention = proposal;
-              d.editingIntention = true;
-              w.render();
-              w.root.querySelector<HTMLElement>('input[name="ifText"]')?.focus();
+          'div',
+          { class: 'card' },
+          h('p', { class: 'plan-sentence', 'data-role': 'plan-sentence' }, formatIntention(proposal)),
+          h(
+            'button',
+            {
+              type: 'button',
+              class: 'button link',
+              onclick: () => {
+                d.intention = proposal;
+                d.editingIntention = true;
+                w.render();
+                w.root.querySelector<HTMLElement>('input[name="ifText"]')?.focus();
+              },
             },
-          },
-          t.planEdit,
+            t.planEdit,
+          ),
         ),
-      ),
-    );
+      ],
+      check: () => undefined,
+    };
   }
-  body.push(h('p', { class: 'muted' }, de.today.minimum(d.minimumText.trim())));
 
-  // Hindernispläne: leere Zeilen werden ignoriert, halb ausgefüllte gemeldet.
+  const current = proposal ?? { ifText: '', thenText: d.actionText.trim() };
+  d.intention = current;
+  const ifField = textField({
+    label: t.planIf,
+    value: current.ifText,
+    max: appConfig.textLimits.long,
+    name: 'ifText',
+    onInput: (v) => (d.intention = { ...d.intention!, ifText: v }),
+  });
+  const thenField = textField({
+    label: t.planThen,
+    value: current.thenText,
+    max: appConfig.textLimits.long,
+    name: 'thenText',
+    onInput: (v) => (d.intention = { ...d.intention!, thenText: v }),
+  });
+  return {
+    nodes: [h('div', { class: 'card wizard' }, ifField.field, thenField.field)],
+    check: () => {
+      const i = d.intention!;
+      const ifEmpty = !i.ifText.trim();
+      const thenEmpty = !i.thenText.trim();
+      const removed = d.fixedIntention && ifEmpty && thenEmpty;
+      const ifMsg = ifEmpty && !removed ? de.errors.required : undefined;
+      const thenMsg = thenEmpty && !removed ? de.errors.required : undefined;
+      const tooLong = message(normalizeHabitInput(rawInput(d)).errors.intention, appConfig.textLimits.long);
+      ifField.showError(ifMsg ?? (tooLong && !thenMsg ? tooLong : undefined));
+      thenField.showError(thenMsg);
+      if (ifMsg || (tooLong && !thenMsg)) return ifField.input;
+      return thenMsg ? thenField.input : undefined;
+    },
+  };
+}
+
+/** Hindernispläne: leere Zeilen werden ignoriert, halb ausgefüllte gemeldet. */
+export function copingPart(w: FormHost, d: HabitDraft): FormPart {
   const copingFields = d.copingPlans.map((plan, i) => {
     const obstacle = textField({
       label: t.copingObstacle,
@@ -400,37 +492,19 @@ export function planStep(w: Wizard, d: HabitDraft, opts: { submitLabel: string; 
         )
       : null;
   const copingTitleId = uid('coping-title');
-  body.push(
-    h(
-      'section',
-      { class: 'coping-plans', 'aria-labelledby': copingTitleId },
-      h('h2', { id: copingTitleId }, t.copingTitle, h('span', { class: 'muted' }, ` (${de.common.optional})`)),
-      h('p', { class: 'hint' }, t.copingHint),
-      copingFields.map((c) => c.row),
-      add,
-    ),
-  );
-
-  const weights = [1, 2, 3].map((value) =>
-    radio('weight', String(value), t.weights[value] ?? String(value), d.weight === value, () => (d.weight = value)),
-  );
-  body.push(h('fieldset', null, h('legend', null, t.weightLabel), h('div', { class: 'choices' }, weights)));
-  if (opts.note) body.push(h('p', { class: 'card notice', 'data-role': 'draft-note' }, opts.note));
-
-  return w.frame(
-    t.planTitle,
-    body,
-    () => {
+  return {
+    nodes: [
+      h(
+        'section',
+        { class: 'coping-plans', 'aria-labelledby': copingTitleId },
+        h('h2', { id: copingTitleId }, t.copingTitle, h('span', { class: 'muted' }, ` (${de.common.optional})`)),
+        h('p', { class: 'hint' }, t.copingHint),
+        copingFields.map((c) => c.row),
+        add,
+      ),
+    ],
+    check: () => {
       let first: HTMLElement | undefined;
-      if (ifField && thenField && d.intention) {
-        const ifMsg = d.intention.ifText.trim() ? undefined : de.errors.required;
-        const thenMsg = d.intention.thenText.trim() ? undefined : de.errors.required;
-        const tooLong = message(normalizeHabitInput(rawInput(d)).errors.intention, appConfig.textLimits.long);
-        ifField.showError(ifMsg ?? (tooLong && !thenMsg ? tooLong : undefined));
-        thenField.showError(thenMsg);
-        if (ifMsg || (tooLong && !thenMsg)) first = ifField.input;
-        else if (thenMsg) first = thenField.input;
-      }
       for (const { obstacle, response } of copingFields) {
         const o = obstacle.input.value.trim();
         const r = response.input.value.trim();
@@ -442,6 +516,16 @@ export function planStep(w: Wizard, d: HabitDraft, opts: { submitLabel: string; 
       }
       return first;
     },
-    opts.submitLabel,
+  };
+}
+
+/** Gewicht nach Aufwand, 1 bis 3. */
+export function weightPart(d: HabitDraft): FormPart {
+  const weights = [1, 2, 3].map((value) =>
+    radio('weight', String(value), t.weights[value] ?? String(value), d.weight === value, () => (d.weight = value)),
   );
+  return {
+    nodes: [h('fieldset', null, h('legend', null, t.weightLabel), h('div', { class: 'choices' }, weights))],
+    check: () => undefined,
+  };
 }

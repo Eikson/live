@@ -45,12 +45,17 @@ Alle Datensätze haben stabile IDs, `createdAt` und `updatedAt`. Löschbare Date
 
 Ein Habit speichert nur seinen aktuellen Stand. Wie es an einem früheren Tag aussah (Status, Plan, Gewicht), leitet `buildTimeline` aus dem Ereignisprotokoll ab. So bleibt eine Planänderung heute ohne Wirkung auf die Bewertung vergangener Tage.
 
+Neue Ereignisse bekommen ihren Zeitstempel über `eventTime` (`src/app/planning.ts`): jetzt, aber mindestens eine Millisekunde nach dem letzten gespeicherten Ereignis. Damit ist die Reihenfolge auch bei schnell aufeinanderfolgenden Aktionen oder einer zurückgestellten Uhr eindeutig.
+
 ## Bildschirme und Routen
 
 Der Router arbeitet über den Hash (`#/heute`, `#/plan`, …, siehe E-005). Assistenten haben eigene Routen und bekommen Parameter über die Abfrage im Hash, z. B. `#/gewohnheit-neu?ziel=<id>`. Die Tab-Leiste markiert bei diesen Routen den Bereich „Plan“.
 
 - `src/ui/wizard.ts`: gemeinsamer Rahmen für Assistenten (Fortschritt, Zurück/Weiter, Fehlermeldung je Feld, Schutz vor Doppeltipp beim Speichern)
-- `src/ui/habit-steps.ts`: die Schritte für Ziel und Gewohnheit, genutzt vom ersten Start, von „+ Ziel“ und von „+ Gewohnheit“
+- `src/ui/habit-steps.ts`: die Schritte für Ziel und Gewohnheit, genutzt vom ersten Start, von „+ Ziel“ und von „+ Gewohnheit“. Die Bausteine (`FormPart`: Knoten plus Prüfung) stecken auch im Bearbeiten-Formular.
+- `src/ui/edit-form.ts`: kompaktes Formular auf einem Bildschirm für `#/gewohnheit-bearbeiten?id=<id>` und `#/ziel-bearbeiten?id=<id>`. `fokus=minimum|cue` setzt den Fokus auf ein Feld (vom Wiedereinstieg aus).
+- Plan-Aktionen (Bearbeiten, Pausieren, Fortsetzen, Archivieren, Löschen) hängen am aufgeklappten Habit. Endgültige Aktionen fragen direkt an Ort und Stelle nach; der Fokus wandert auf die Frage und bei „Abbrechen“ zurück.
+- Die Wiedereinstiegskarte erscheint auf „Heute“ über den Karten. Ob sie ausgeblendet wurde, steht in `src/platform/ui-memory.ts` (localStorage, unkritisch).
 - „Heute“ hält den gewählten Tag nur im Bildschirm. Nachtragen lädt dieselbe Sicht für einen der letzten sieben Tage.
 
 ## Transaktionen
@@ -78,7 +83,7 @@ Bereits umgesetzt ist die Integration (30-Tage-Fenster, Eintritt ab 80 %, Austri
 ## Tests
 
 - `tests/unit/`: Domain-Logik (Datum inklusive Sommerzeit, Planung, Status, Check-in, Erfüllung, Integration)
-- `tests/integration/`: Repository und Use Cases gegen fake-indexeddb (Transaktionen, eindeutiger Index, Migrationen, erste Schleife, Planung)
+- `tests/integration/`: Repository und Use Cases gegen fake-indexeddb (Transaktionen, eindeutiger Index, Migrationen, erste Schleife, Planung, Bearbeiten/Pausieren/Löschen/Wiedereinstieg)
 - `tests/e2e/`: Playwright in Chromium mit Pixel-8-Viewport und Desktop; gemeinsame Abläufe in `tests/e2e/helpers.ts`
 
 ## Grenzen der PWA

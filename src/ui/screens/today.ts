@@ -1,14 +1,16 @@
 import { recordCheckIn, type RecordCheckInInput } from '../../app/check-in';
 import type { AppContext } from '../../app/context';
-import { removeCheckIn } from '../../app/planning';
+import { reenter, removeCheckIn } from '../../app/planning';
 import { loadTodayView, type TodayCard, type TodayView } from '../../app/today';
 import { appConfig } from '../../domain/app-config';
 import type { LocalDate } from '../../domain/local-date';
-import type { BuildOutcome, CheckIn } from '../../domain/types';
+import type { ReentryChoice } from '../../domain/reentry';
+import type { BuildOutcome, CheckIn, Habit } from '../../domain/types';
 import { de } from '../../i18n/de';
 import { h, icon, icons, uid } from '../dom';
 import { formatCue, formatDayShort, formatWeekdayShort } from '../format';
-import { routeHref } from '../router';
+import { dismissReentry, isReentryDismissed } from '../../platform/ui-memory';
+import { navigate, routeHref } from '../router';
 import type { Screen } from '../screen';
 
 /** Texte für heute oder für einen nachgetragenen Tag. */
@@ -280,6 +282,126 @@ function habitCard(ctx: AppContext, initial: TodayCard, day: LocalDate, past: bo
   return article;
 }
 
+/**
+ * Wiedereinstieg nach einer längeren Pause ohne Angaben. Die Wahl wird sofort gespeichert;
+ * „Kleiner machen“ und „Auslöser ändern“ führen danach ins Bearbeiten-Formular.
+ */
+function reentryCard(
+  ctx: AppContext,
+  reentry: { since: LocalDate; habits: Habit[] },
+  done: (status: string | undefined) => void,
+): HTMLElement {
+  const t = de.reentry;
+  const titleId = uid('reentry');
+  const article = h('article', { class: 'card reentry', 'aria-labelledby': titleId, 'data-role': 'reentry' });
+  let target = reentry.habits[0]!.id;
+  let busy = false;
+  let error: string | undefined;
+
+  async function choose(choice: ReentryChoice) {
+    if (busy) return;
+    busy = true;
+    error = undefined;
+    render();
+    const habitIds = reentry.habits.map((x) => x.id);
+    let ok = false;
+    try {
+      ok = (await reenter(ctx, { habitIds, choice, targetId: target })).ok;
+    } catch {
+      ok = false;
+    }
+    busy = false;
+    if (!ok) {
+      error = de.errors.saveFailed;
+      render();
+      return;
+    }
+    if (choice === 'SMALLER' || choice === 'CHANGE_CUE') {
+      navigate('gewohnheit-bearbeiten', { params: { id: target, fokus: choice === 'SMALLER' ? 'minimum' : 'cue' } });
+      return;
+    }
+    const habit = reentry.habits.find((x) => x.id === target);
+    done(choice === 'PAUSE' && habit ? t.paused(habit.actionText) : t.continued);
+  }
+
+  function render() {
+    const choices: [ReentryChoice, string, boolean?][] = [
+      ['CONTINUE', t.continue, true],
+      ['SMALLER', t.smaller],
+      ['CHANGE_CUE', t.changeCue],
+      ['PAUSE', t.pause],
+    ];
+    const picker =
+      reentry.habits.length > 1
+        ? h(
+            'fieldset',
+            null,
+            h('legend', null, t.habitLabel),
+            h(
+              'div',
+              { class: 'choices' },
+              reentry.habits.map((x) =>
+                h(
+                  'label',
+                  { class: 'choice' },
+                  h('input', {
+                    type: 'radio',
+                    name: 'reentry-habit',
+                    value: x.id,
+                    checked: x.id === target,
+                    disabled: busy,
+                    onchange: () => (target = x.id),
+                  }),
+                  h('span', null, x.actionText),
+                ),
+              ),
+            ),
+          )
+        : h('p', { class: 'muted' }, reentry.habits[0]!.actionText);
+    article.replaceChildren(
+      h('p', { class: 'label', id: titleId }, t.label),
+      h('p', null, t.welcome),
+      h('p', null, t.question),
+      picker,
+      h(
+        'div',
+        { class: 'actions' },
+        choices.map(([choice, label, primary]) =>
+          h(
+            'button',
+            {
+              type: 'button',
+              class: `button${primary ? ' primary' : ''}`,
+              'data-choice': choice,
+              disabled: busy,
+              onclick: () => void choose(choice),
+            },
+            label,
+          ),
+        ),
+        h(
+          'button',
+          {
+            type: 'button',
+            class: 'button link',
+            'data-choice': 'DISMISS',
+            disabled: busy,
+            onclick: () => {
+              dismissReentry(reentry.since);
+              done(undefined);
+            },
+          },
+          t.dismiss,
+        ),
+      ),
+    );
+    if (error) article.append(h('p', { class: 'form-error', role: 'alert' }, error));
+  }
+
+  render();
+  return article;
+}
+
 /** Auswahl des Tages: heute oder bis zu sieben Tage zurück. */
 function dayPicker(view: TodayView, onPick: (day: LocalDate) => void): HTMLElement {
   return h(
@@ -314,7 +436,7 @@ function dayPicker(view: TodayView, onPick: (day: LocalDate) => void): HTMLEleme
 export const todayScreen: Screen = async ({ ctx }) => {
   const section = h('section', { class: 'screen' });
 
-  async function show(day: LocalDate | undefined, focus: boolean): Promise<void> {
+  async function show(day: LocalDate | undefined, focus: boolean, status?: string): Promise<void> {
     const view = await loadTodayView(ctx, day);
     const past = view.day !== view.today;
     const heading = h(
@@ -335,6 +457,19 @@ export const todayScreen: Screen = async ({ ctx }) => {
             de.today.backToToday,
           ),
         ),
+      );
+    }
+
+    const statusLine = h('p', { class: 'status-line', role: 'status', tabindex: '-1', 'data-role': 'today-status' }, status ?? '');
+    nodes.push(statusLine);
+    if (view.reentry && !isReentryDismissed(view.reentry.since)) {
+      nodes.push(
+        reentryCard(ctx, view.reentry, (text) => {
+          void show(undefined, false, text).then(() => {
+            const target = text ? section.querySelector<HTMLElement>('[data-role="today-status"]') : section.querySelector('h1');
+            target?.focus();
+          });
+        }),
       );
     }
 

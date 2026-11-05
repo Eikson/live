@@ -1,7 +1,7 @@
 /** Hash-Routing: funktioniert offline und unter einem Unterpfad (GitHub Pages) ohne Server-Konfiguration. */
-export type Route = 'heute' | 'plan' | 'verlauf' | 'einstellungen' | 'start' | 'ziel-neu' | 'gewohnheit-neu';
+export type Route = 'heute' | 'plan' | 'verlauf' | 'einstellungen' | 'start' | 'ziel-neu' | 'gewohnheit-neu' | 'ziel-bearbeiten' | 'gewohnheit-bearbeiten';
 
-const ROUTES: readonly Route[] = ['heute', 'plan', 'verlauf', 'einstellungen', 'start', 'ziel-neu', 'gewohnheit-neu'];
+const ROUTES: readonly Route[] = ['heute', 'plan', 'verlauf', 'einstellungen', 'start', 'ziel-neu', 'gewohnheit-neu', 'ziel-bearbeiten', 'gewohnheit-bearbeiten'];
 
 export type RouteParams = Record<string, string>;
 

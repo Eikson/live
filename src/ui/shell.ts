@@ -17,7 +17,12 @@ const TABS: { route: Route; label: string; icon: string[] }[] = [
 ];
 
 /** Unterseiten, die zu einem Tab gehören. */
-const TAB_OF: Partial<Record<Route, Route>> = { 'ziel-neu': 'plan', 'gewohnheit-neu': 'plan' };
+const TAB_OF: Partial<Record<Route, Route>> = {
+  'ziel-neu': 'plan',
+  'gewohnheit-neu': 'plan',
+  'ziel-bearbeiten': 'plan',
+  'gewohnheit-bearbeiten': 'plan',
+};
 
 export function createShell(): Shell {
   const gear = h('a', { class: 'icon-button', href: routeHref('einstellungen'), 'aria-label': de.nav.settings });

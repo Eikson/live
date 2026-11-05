@@ -73,3 +73,25 @@ An einem nicht geplanten Tag gibt es statt der drei Knöpfe nur „Trotzdem gema
 ## E-018 Vorschlag für den Wenn-dann-Satz
 
 Der Vorschlag entsteht aus dem Auslöser nach festen Mustern ohne KI: Zeitangaben werden zu „es … ist“ („Nach dem Mittagessen“ → „Wenn es nach dem Mittagessen ist“), Ortsangaben mit „bei/beim“ zu „ich … bin“, einleitendes „Wenn/Sobald/Nachdem“ entfällt („Sobald ich nach Hause komme“ → „Wenn ich nach Hause komme“), eine Uhrzeit ohne Beschreibung wird zu „Wenn es 7:30 Uhr ist“. Unbekannte Formen bleiben unverändert. Der Dann-Teil ist die Handlung. Solange du den Satz nicht selbst änderst, wird der Vorschlag gespeichert.
+
+## E-019 Wann die Wiedereinstiegskarte erscheint
+
+Die Karte erscheint auf „Heute“, wenn seit der letzten Angabe irgendeiner Art (Check-in, Befinden, Ausnahmetag) oder dem letzten Neustart mindestens 5 Tage liegen (`appConfig.recovery.daysWithoutAnyEntry`). Als Neustart zählen Aktivieren, Fortsetzen und eine Wahl auf der Wiedereinstiegskarte. Betroffen ist ein Habit, wenn seitdem mindestens 2 geplante Tage ohne Angabe vergangen sind (`minMissedPlannedOpportunities`). Ausnahmetage und heute zählen nicht mit.
+
+Die Wahl wird sofort als Ereignis `REENTERED` gespeichert, für jedes betroffene Habit. Das gewählte Habit trägt die Wahl, die übrigen „Weitermachen“. Damit verschwindet die Karte und es beginnt eine neue Zählung. „Kleiner machen“ und „Auslöser ändern“ öffnen danach das Bearbeiten-Formular mit dem Fokus auf der Minimalversion bzw. dem Auslöser. „Pausieren“ pausiert das gewählte Habit in derselben Transaktion. „Ausblenden“ speichert nichts in der Datenbank. Es merkt sich nur in localStorage den Schlüssel `since`; bei einer späteren Pause erscheint die Karte wieder.
+
+## E-020 Bearbeiten auf einem Bildschirm
+
+Bearbeiten ist kein Assistent, sondern ein kompaktes Formular mit denselben Feldern und Prüfungen. Der vorherige Stand landet im Änderungsprotokoll. Rhythmus und Gewicht gelten ab heute; frühere Tage und ihre Angaben bleiben unverändert. Der Wenn-dann-Satz ist hier ein festes Feldpaar ohne Vorschlag. Beide Teile leer heißt: kein Wenn-dann-Satz. Ist nur ein Teil ausgefüllt, wird der andere verlangt. Ohne Änderung wird nichts geschrieben; der Plan meldet „Gespeichert. Es gab keine Änderung.“
+
+## E-021 Archivieren, Löschen und Fortsetzen
+
+Archivieren ist endgültig: Ein archiviertes Habit lässt sich nicht fortsetzen oder bearbeiten und zählt auch rückwirkend nicht mehr mit. Es bleibt nur „Löschen“. Löschen setzt Löschmarkierungen und entfernt Änderungsprotokoll und Wochenrückblick-Einträge des Habits. Ein Ziel zu löschen löscht alle seine Habits mit, auch Entwürfe, pausierte und archivierte; die Rückfrage nennt die Anzahl. Ziele zu archivieren ist nicht gebaut, weil die Spezifikation dafür keinen Ablauf vorgibt. Ein bereits integriertes Habit braucht zum Fortsetzen keinen freien Platz im Aufbau.
+
+## E-022 Rückfragen direkt an Ort und Stelle
+
+Archivieren und Löschen fragen nicht in einem Dialog nach, sondern ersetzen die Aktionsleiste des Habits durch die Frage mit „Ja, …“ und „Abbrechen“. Der Fokus geht auf die Frage und bei „Abbrechen“ zurück auf den auslösenden Knopf. Aktionsknöpfe sind sichtbar kurz („Bearbeiten“); ihr zugänglicher Name nennt das Habit („Bearbeiten: 10 Minuten spazieren“).
+
+## E-023 Eindeutige Reihenfolge im Änderungsprotokoll
+
+Ereignisse am selben Tag werden nach Zeitstempel sortiert. Zwei Aktionen in derselben Millisekunde (oder eine zurückgestellte Uhr) hätten die Reihenfolge offen gelassen, z. B. Pausieren und sofortiges Fortsetzen. Neue Ereignisse bekommen deshalb mindestens den letzten gespeicherten Zeitstempel plus eine Millisekunde (`eventTime`).

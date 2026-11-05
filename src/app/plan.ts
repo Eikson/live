@@ -11,6 +11,8 @@ export interface PlanHabit {
   badge: HabitBadge;
   /** Titel des Ziels, für Listen außerhalb der Zielgruppe (Entwürfe, Pausiert, Archiviert). */
   goalTitle?: string;
+  /** Nur bei pausierten Habits: Fortsetzen ist möglich (Platz frei oder bereits integriert). */
+  canResume?: boolean;
 }
 
 export interface PlanView {
@@ -33,7 +35,11 @@ export async function loadPlanView(ctx: AppContext): Promise<PlanView> {
     const badge: HabitBadge =
       habit.status === 'ACTIVE' ? (derived.isIntegrated(habit) ? 'INTEGRATED' : 'BUILDING') : habit.status;
     const goalTitle = habit.goalId ? goalTitles.get(habit.goalId) : undefined;
-    return { habit, badge, ...(goalTitle ? { goalTitle } : {}) };
+    const canResume =
+      habit.status === 'PAUSED'
+        ? derived.buildingCount < appConfig.maxBuildingHabits || derived.isIntegrated(habit)
+        : undefined;
+    return { habit, badge, ...(goalTitle ? { goalTitle } : {}), ...(canResume !== undefined ? { canResume } : {}) };
   };
   const build = data.habits.filter((h) => h.kind === 'BUILD').sort(byCreated);
   const withStatus = (status: Habit['status']) => build.filter((h) => h.status === status).map(item);
@@ -67,4 +73,20 @@ export async function loadHabitWizardContext(ctx: AppContext, goalId: string): P
   if (!goal) return undefined;
   const { buildingCount } = derive(data, today(ctx.clock));
   return { goal, hasFreeSlot: buildingCount < appConfig.maxBuildingHabits };
+}
+
+/** Ein Ziel zum Bearbeiten. */
+export async function loadGoal(ctx: AppContext, goalId: string): Promise<Goal | undefined> {
+  const data = await ctx.repo.loadLive();
+  return data.goals.find((g) => g.id === goalId);
+}
+
+/** Ein Habit zum Bearbeiten; archivierte Habits lassen sich nicht mehr bearbeiten. */
+export async function loadEditableHabit(ctx: AppContext, habitId: string): Promise<PlanHabit | undefined> {
+  const data = await ctx.repo.loadLive();
+  const habit = data.habits.find((h) => h.id === habitId && h.status !== 'ARCHIVED');
+  if (!habit) return undefined;
+  const goalTitle = data.goals.find((g) => g.id === habit.goalId)?.title;
+  const badge: HabitBadge = habit.status === 'ACTIVE' ? 'BUILDING' : habit.status;
+  return { habit, badge, ...(goalTitle ? { goalTitle } : {}) };
 }

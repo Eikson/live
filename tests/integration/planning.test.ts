@@ -3,7 +3,7 @@ import { recordCheckIn } from '../../src/app/check-in';
 import type { AppContext } from '../../src/app/context';
 import { completeOnboarding, type OnboardingInput } from '../../src/app/onboarding';
 import { loadHabitWizardContext, loadPlanView } from '../../src/app/plan';
-import { activateHabit, createGoal, createHabit, removeCheckIn, type CreateHabitInput } from '../../src/app/planning';
+import { activateHabit, changeHabitStatus, createGoal, createHabit, removeCheckIn, type CreateHabitInput } from '../../src/app/planning';
 import { loadTodayView } from '../../src/app/today';
 import { IdbRepository } from '../../src/data/idb-repository';
 import { fixedClock } from '../../src/platform/clock';
@@ -83,14 +83,8 @@ describe('Ziele und Habits anlegen', () => {
     expect(view.goals[0]!.habits).toHaveLength(2);
     expect(await activateHabit(ctx, third.habitId)).toEqual({ ok: false, reason: 'BUILD_LIMIT_REACHED' });
 
-    // Ein Platz wird frei (Archivieren folgt als Use Case in Schritt 4).
-    const data = await ctx.repo.loadLive();
-    const h = data.habits.find((x) => x.id === first)!;
-    const at = ctx.clock.now().toISOString();
-    await ctx.repo.commit({
-      habits: [{ ...h, status: 'ARCHIVED', updatedAt: at }],
-      addHabitEvents: [{ id: 'arch', habitId: first, localDate: '2026-11-05', at, type: 'ARCHIVED', before: 'ACTIVE', after: 'ARCHIVED' }],
-    });
+    // Archivieren macht einen Platz frei.
+    expect(await changeHabitStatus(ctx, first, 'ARCHIVE')).toEqual({ ok: true });
 
     expect(await activateHabit(ctx, third.habitId)).toEqual({ ok: true });
     view = await loadPlanView(ctx);

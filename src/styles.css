@@ -468,7 +468,8 @@ legend {
   gap: var(--space-2);
 }
 
-.habit-card .label {
+.habit-card .label,
+.reentry .label {
   color: var(--muted);
   font-size: 0.875rem;
   margin: 0;
@@ -590,6 +591,23 @@ legend {
 
 .item-actions {
   margin-bottom: var(--space-3);
+}
+
+.item-actions .hint {
+  flex-basis: 100%;
+  margin: 0;
+}
+
+/* Rückfrage vor Archivieren und Löschen, direkt an der Stelle der Aktion */
+.confirm {
+  flex-basis: 100%;
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-small);
+}
+
+.confirm-text {
+  margin: 0 0 var(--space-3);
 }
 
 .add-link {

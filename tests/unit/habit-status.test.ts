@@ -38,3 +38,11 @@ describe('habit-status', () => {
     expect(transition(makeHabit(), 'PAUSE', { buildingCount: 2 })).toEqual({ ok: true, next: 'PAUSED' });
   });
 });
+
+describe('habit-status: integrierte Habits', () => {
+  it('ein integriertes Habit lässt sich auch ohne freien Platz fortsetzen', () => {
+    const paused = makeHabit({ status: 'PAUSED' });
+    expect(transition(paused, 'RESUME', { buildingCount: 2, integrated: true })).toEqual({ ok: true, next: 'ACTIVE' });
+    expect(transition(paused, 'RESUME', { buildingCount: 2, integrated: false }).ok).toBe(false);
+  });
+});

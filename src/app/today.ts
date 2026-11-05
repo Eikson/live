@@ -1,6 +1,7 @@
 import { isWithinBackfill } from '../domain/check-in';
 import { addDays, dateRange, type LocalDate } from '../domain/local-date';
 import { appConfig } from '../domain/app-config';
+import { findReentry } from '../domain/reentry';
 import { nextScheduledDate } from '../domain/schedule';
 import type { CheckIn, Habit, Preferences } from '../domain/types';
 import { today } from '../platform/clock';
@@ -26,6 +27,8 @@ export interface TodayView {
   preferences: Preferences;
   /** Geplante Karten zuerst (Habits im Aufbau oben), danach nicht geplante. */
   cards: TodayCard[];
+  /** Wiedereinstiegskarte; nur für heute, nicht beim Nachtragen. */
+  reentry?: { since: LocalDate; habits: Habit[] };
 }
 
 /**
@@ -61,5 +64,20 @@ export async function loadTodayView(ctx: AppContext, requestedDay?: LocalDate): 
     );
 
   const days = dateRange(addDays(now, -appConfig.checkInBackfillDays), now).reverse();
-  return { today: now, day, days, preferences: data.preferences, cards };
+  const view: TodayView = { today: now, day, days, preferences: data.preferences, cards };
+  if (day === now) {
+    const active = data.habits.filter((h) => h.kind === 'BUILD' && derived.timeline(h).isActiveOn(now));
+    const reentry = findReentry({
+      today: now,
+      habits: active.map((h) => ({
+        timeline: derived.timeline(h),
+        events: data.habitEvents.filter((e) => e.habitId === h.id),
+        checkInDates: [...derived.checkInsOf(h.id).keys()],
+      })),
+      entryDates: [...data.checkIns.map((c) => c.localDate), ...data.dayRecords.map((d) => d.localDate)],
+      exceptionDays: derived.exceptionDays,
+    });
+    if (reentry) view.reentry = { since: reentry.since, habits: active.filter((h) => reentry.habitIds.includes(h.id)) };
+  }
+  return view;
 }

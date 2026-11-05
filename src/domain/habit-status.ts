@@ -29,16 +29,16 @@ export function hasFreeBuildingSlot(habits: readonly Habit[], isIntegrated: (hab
 
 /**
  * Prüft einen Statuswechsel. Aktivieren und Fortsetzen eines BUILD-Habits brauchen einen
- * freien Platz im Aufbau. Gegen-Habits zählen nicht zur Grenze.
+ * freien Platz im Aufbau. Gegen-Habits und integrierte Habits zählen nicht zur Grenze.
  */
 export function transition(
   habit: Habit,
   action: StatusAction,
-  ctx: { buildingCount: number },
+  ctx: { buildingCount: number; integrated?: boolean },
 ): TransitionResult {
   const next = TRANSITIONS[habit.status][action];
   if (!next) return { ok: false, reason: 'INVALID_TRANSITION' };
-  const needsSlot = habit.kind === 'BUILD' && (action === 'ACTIVATE' || action === 'RESUME');
+  const needsSlot = habit.kind === 'BUILD' && !ctx.integrated && (action === 'ACTIVATE' || action === 'RESUME');
   if (needsSlot && ctx.buildingCount >= appConfig.maxBuildingHabits) {
     return { ok: false, reason: 'BUILD_LIMIT_REACHED' };
   }

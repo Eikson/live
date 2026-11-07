@@ -5,11 +5,12 @@ import { chooseHint, markHintShown, type HintChoice } from '../../app/hint';
 import { loadTodayView, type TodayCard, type TodayView } from '../../app/today';
 import { appConfig } from '../../domain/app-config';
 import type { LocalDate } from '../../domain/local-date';
+import type { ReviewWeek } from '../../domain/review';
 import type { ReentryChoice } from '../../domain/reentry';
 import type { BuildOutcome, CheckIn, Habit } from '../../domain/types';
 import { de } from '../../i18n/de';
 import { h, icon, icons, uid } from '../dom';
-import { formatCue, formatDayShort, formatWeekdayShort } from '../format';
+import { formatCue, formatDayMonth, formatDayShort, formatWeekdayShort } from '../format';
 import { dismissReentry, isReentryDismissed } from '../../platform/ui-memory';
 import { dayPicker } from '../day-picker';
 import { navigate, routeHref } from '../router';
@@ -513,6 +514,19 @@ function hintCard(ctx: AppContext, hint: { habits: Habit[] }, done: (status: str
   return article;
 }
 
+/** Ruhige Karte für den anstehenden Wochenrückblick. */
+function reviewCard(week: ReviewWeek): HTMLElement {
+  const t = de.review;
+  return h(
+    'div',
+    { class: 'card review-card', 'data-role': 'review-card' },
+    h('p', { class: 'label' }, t.cardLabel),
+    h('p', null, t.cardText(formatDayMonth(week.from), formatDayMonth(week.to))),
+    h('p', { class: 'muted' }, t.cardOptional),
+    h('a', { class: 'button primary', href: routeHref('wochenrueckblick') }, t.cardOpen),
+  );
+}
+
 /**
  * Zugang zum Abend-Check-in. Ab der eingestellten Uhrzeit als ruhige Karte (nicht neben der
  * Wiedereinstiegskarte), sonst als schlichter Link. Ein abgeschlossener Tag lässt sich ändern.
@@ -607,7 +621,10 @@ export const todayScreen: Screen = async ({ ctx }) => {
     } else {
       for (const card of view.cards) nodes.push(habitCard(ctx, card, view.day, past));
     }
-    nodes.push(eveningEntry(view, reentryShown || hintShown));
+    // Wochenrückblick nur, wenn keine andere Karte oben steht; die Abend-Karte weicht dann dem Link.
+    const reviewShown = Boolean(view.review && !reentryShown && !hintShown);
+    if (view.review && reviewShown) nodes.push(reviewCard(view.review));
+    nodes.push(eveningEntry(view, reentryShown || hintShown || reviewShown));
     nodes.push(dayPicker(view, (d) => void show(d, true)));
     section.replaceChildren(...nodes);
     if (focus) heading.focus();

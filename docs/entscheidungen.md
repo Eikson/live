@@ -170,4 +170,38 @@ Gespeichert werden nur `lastWarningCardAt` und `warningSnoozedUntil` in den Eins
 
 ## E-040 Wochenrückblick folgt in Schritt 7
 
-Werte für den Wochenrückblick kommen mit Schritt 7 und sind hier noch nicht gebaut.
+Werte für den Wochenrückblick kommen mit Schritt 7 und sind hier noch nicht gebaut. Umgesetzt in Schritt 7, siehe E-046.
+
+## E-041 Rückblickswoche und Fälligkeit
+
+Ein Rückblick gehört zu einer Woche, ihr Schlüssel ist der Montag (`weekStart`). Betrachtet werden die sieben Tage bis einschließlich des Rückblickstags (Standard Sonntag, also Montag bis Sonntag). Die Karte erscheint ab dem Rückblickstag und bleibt, bis der Rückblick abgeschlossen oder übersprungen ist oder die nächste Rückblickswoche beginnt. Alte Wochen werden nicht nachgeholt. Überspringen speichert einen leeren Datensatz mit Status `SKIPPED`, damit die Karte verschwindet.
+
+Im Rückblick stehen Habits, die heute aktiv sind und an mindestens einem Tag des Fensters vor dem Rückblickstag aktiv waren. Ein Habit, das erst am Rückblickstag startet, hat noch keine Woche hinter sich. Gibt es kein solches Habit, steht kein Rückblick an.
+
+## E-042 Automatik alle 4 Wochen
+
+Die vier Aussagen zur Automatik erscheinen in jedem 4. Rückblick, gezählt werden alle gespeicherten Rückblicke (auch übersprungene). Gefragt wird für alle Aufbau-Habits im Rückblick, auch integrierte. Gespeichert wird nur, wenn alle vier Aussagen beantwortet sind. Der Verlauf zeigt den Mittelwert mit dem Zusatz „deine Einschätzung“; daraus wird kein Status abgeleitet.
+
+## E-043 Vorschlagsregeln
+
+Vorschläge kommen nur aus festen Regeln (`SUGGESTION_RULES` in `src/domain/review.ts`) und nennen immer den Grund:
+
+- mindestens 3× „Heute nicht“ in der Woche: kleinere Version
+- Leichtigkeit 1 oder 2: kleinere Version
+- im geplanten Moment „selten“: anderer Auslöser
+
+Eine Steigerung wird nie vorgeschlagen. Die Vorschläge werden beim Abschließen aus denselben Angaben neu berechnet. Wird ein gezeigter Vorschlag nicht gewählt, ruht diese Regel für dieses Habit 28 Tage (`suggestionSnoozes` in den Einstellungen). Überspringen lässt nichts ruhen. In den Einstellungen lassen sich Vorschläge ganz ausschalten.
+
+## E-044 Hinweis im Rückblick
+
+Hätte die Hinweislogik (E-038) an einem Tag der Woche angeschlagen, erscheint der Hinweis auch im Rückblick mit denselben Wahlmöglichkeiten. Die Wahl setzt die Entscheidung des Habits für nächste Woche. Die Ruhezeit der Hinweiskarte auf „Heute“ bleibt davon unberührt.
+
+## E-045 Kompakte Liste
+
+Integrierte Habits und Gegen-Habits stehen in einer kompakten Liste mit „passt“ und „anpassen“. „Passt“ speichert die Entscheidung „so lassen“. „Anpassen“ speichert nichts und bietet nach dem Abschließen einen Link zum Bearbeiten an. Pausieren aus dem Rückblick geschieht in derselben Transaktion wie das Speichern. Nach „etwas kleiner“ oder „anderer Auslöser“ führen Links ins Bearbeiten-Formular mit Fokus auf dem Feld.
+
+## E-046 Rückblick auf „Heute“, im Verlauf und in den Einstellungen
+
+- Vorrang auf „Heute“: Wiedereinstieg vor Hinweiskarte vor Wochenrückblick vor Abendkarte. Ist eine dieser Karten zu sehen, wird die Abendkarte zum Link. Die Seite `#/wochenrueckblick` ist auch erreichbar, wenn der Wiedereinstieg Vorrang hat.
+- Der Verlauf zeigt im Kalender je Habit die Rückblickswerte der Wochen, die im Monat beginnen (Leichtigkeit, im geplanten Moment, Automatik).
+- Einstellungen: Wochenrückblick an/aus, Wochentag, Vorschläge an/aus. Änderungen werden sofort gespeichert.

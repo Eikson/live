@@ -185,7 +185,7 @@ export type ChangeStatusResult =
 
 const STATUS_EVENT: Record<StatusChange, HabitEventType> = { PAUSE: 'PAUSED', RESUME: 'RESUMED', ARCHIVE: 'ARCHIVED' };
 
-function statusChange(
+export function statusChange(
   ctx: AppContext,
   habit: Habit,
   action: StatusChange,

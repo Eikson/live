@@ -346,6 +346,24 @@ function monthGrid(entry: CalendarHabit, month: MonthView): HTMLElement {
   );
 }
 
+/** Eigene Angaben aus den Wochenrückblicken: nur Wochenwerte, keine Tageszahlen. */
+function reviewList(entry: CalendarHabit): HTMLElement | null {
+  if (entry.reviews.length === 0) return null;
+  const r = de.review.history;
+  return h(
+    'ul',
+    { class: 'review-values muted small', 'data-role': 'review-values' },
+    entry.reviews.map((v) => {
+      const parts = [
+        v.ease !== undefined ? r.ease(v.ease) : undefined,
+        v.cueConsistency ? r.cue(de.review.cueOptions[v.cueConsistency]) : undefined,
+        v.automaticity !== undefined ? r.automaticity(formatDecimal(v.automaticity)) : undefined,
+      ].filter((p): p is string => p !== undefined);
+      return h('li', null, `${r.week(formatDayMonth(v.weekStart))}: ${parts.join(' · ')}`);
+    }),
+  );
+}
+
 function calendarHabitCard(entry: CalendarHabit, month: MonthView): HTMLElement {
   const c = entry.counts;
   const kept = c.done + c.minimal + c.alternative;
@@ -362,6 +380,7 @@ function calendarHabitCard(entry: CalendarHabit, month: MonthView): HTMLElement 
       statusText(entry),
     ),
     details ? h('p', { class: 'muted small' }, details) : null,
+    reviewList(entry),
     monthGrid(entry, month),
   );
 }

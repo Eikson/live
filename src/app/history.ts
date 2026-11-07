@@ -2,11 +2,13 @@ import { addDays, dateRange, maxDate, minDate, startOfWeek, type LocalDate } fro
 import { compareWindow, windowMean, type Comparison, type DailyValue } from '../domain/scoring/comparison';
 import { isSufficient, windowAverage, type WindowAverage } from '../domain/scoring/corridor';
 import { scoreValue } from '../domain/scoring/fulfillment';
-import type { CheckIn, Habit, HabitEvent, HabitKind } from '../domain/types';
+import type { CheckIn, CueConsistency, Habit, HabitEvent, HabitKind, WeeklyReview } from '../domain/types';
 import { today as clockToday } from '../platform/clock';
 import type { AppContext } from './context';
 import { derive, type Derived } from './derived';
+import { reviewValuesOf } from './review';
 import { scoringContext } from './scoring';
+import { automaticityMean } from '../domain/review';
 
 /** Zeitraum der Diagramme: die letzten 12 Wochen. */
 export const CHART_DAYS = 84;
@@ -95,6 +97,16 @@ export interface CalendarHabit {
   integratedSince?: LocalDate;
   marks: CalendarMark[];
   counts: CalendarCounts;
+  /** Eigene Angaben aus abgeschlossenen Wochenrückblicken mit Wochenbeginn in diesem Monat */
+  reviews: CalendarReview[];
+}
+
+export interface CalendarReview {
+  weekStart: LocalDate;
+  ease?: number;
+  cueConsistency?: CueConsistency;
+  /** Mittelwert der vier Automatik-Aussagen: deine Einschätzung, kein Messwert */
+  automaticity?: number;
 }
 
 export type HistoryEventKind =
@@ -248,7 +260,7 @@ function markOf(kind: HabitKind, checkIn: CheckIn | undefined): CalendarMark | u
   return v >= 1 ? 'DONE' : v > 0 ? 'MINIMAL' : 'NOT_DONE';
 }
 
-function calendarHabit(habit: Habit, derived: Derived, days: LocalDate[], today: LocalDate): CalendarHabit {
+function calendarHabit(habit: Habit, derived: Derived, days: LocalDate[], today: LocalDate): Omit<CalendarHabit, 'reviews'> {
   const timeline = derived.timeline(habit);
   const checkIns = derived.checkInsOf(habit.id);
   const counts: CalendarCounts = { planned: 0, done: 0, minimal: 0, alternative: 0, notDone: 0, noEntry: 0, extra: 0, exception: 0 };
@@ -291,6 +303,15 @@ function calendarHabit(habit: Habit, derived: Derived, days: LocalDate[], today:
     marks,
     counts,
   };
+}
+
+function calendarReviews(reviews: readonly WeeklyReview[], habitId: string, from: LocalDate, to: LocalDate): CalendarReview[] {
+  return reviewValuesOf(reviews, habitId, from, to).map(({ weekStart, entry }) => ({
+    weekStart,
+    ...(entry.ease !== undefined ? { ease: entry.ease } : {}),
+    ...(entry.cueConsistency ? { cueConsistency: entry.cueConsistency } : {}),
+    ...(entry.automaticity ? { automaticity: automaticityMean(entry.automaticity) } : {}),
+  }));
 }
 
 function changedFields(e: HabitEvent): string[] {
@@ -372,7 +393,7 @@ function monthDays(month: string): LocalDate[] {
   return dateRange(first, last);
 }
 
-function monthView(habits: readonly Habit[], allEvents: readonly HabitEvent[], derived: Derived, today: LocalDate, requested: string | undefined): MonthView {
+function monthView(habits: readonly Habit[], allEvents: readonly HabitEvent[], reviews: readonly WeeklyReview[], derived: Derived, today: LocalDate, requested: string | undefined): MonthView {
   const first = firstActivation(habits);
   const current = monthOf(today);
   const earliest = first ? monthOf(first) : current;
@@ -390,7 +411,7 @@ function monthView(habits: readonly Habit[], allEvents: readonly HabitEvent[], d
     days,
     ...(month > earliest ? { prev: shiftMonth(month, -1) } : {}),
     ...(month < current ? { next: shiftMonth(month, 1) } : {}),
-    habits: shown.map((h) => calendarHabit(h, derived, days, today)),
+    habits: shown.map((h) => ({ ...calendarHabit(h, derived, days, today), reviews: calendarReviews(reviews, h.id, from, to) })),
     exceptionDays: days.filter((d) => d <= today && derived.exceptionDays.has(d)),
     events: historyEvents(habits, allEvents, from, minDate(to, today)),
   };
@@ -415,6 +436,6 @@ export async function loadHistoryView(ctx: AppContext, month?: string): Promise<
     hasHabits: first !== undefined,
     level: levelView(scoring, comparing, today, first, markers),
     wellbeing: wellbeingView(scoring.wellbeingOn, data.dayRecords, today),
-    month: monthView(habits, data.habitEvents, derived, today, month),
+    month: monthView(habits, data.habitEvents, data.weeklyReviews, derived, today, month),
   };
 }

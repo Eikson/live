@@ -22,6 +22,7 @@ const TAB_OF: Partial<Record<Route, Route>> = {
   'gewohnheit-neu': 'plan',
   'ziel-bearbeiten': 'plan',
   'gewohnheit-bearbeiten': 'plan',
+  wochenrueckblick: 'heute',
 };
 
 export function createShell(): Shell {

@@ -1,4 +1,5 @@
 import { isWithinBackfill } from '../domain/check-in';
+import type { ReviewWeek } from '../domain/review';
 import { addDays, dateRange, type LocalDate } from '../domain/local-date';
 import { appConfig } from '../domain/app-config';
 import { isEveningCardTime } from '../domain/evening';
@@ -9,6 +10,7 @@ import { minutesOfDay, today } from '../platform/clock';
 import type { AppContext } from './context';
 import { derive } from './derived';
 import { hintFor } from './hint';
+import { reviewCardFor } from './review';
 
 export interface TodayCard {
   habit: Habit;
@@ -33,6 +35,8 @@ export interface TodayView {
   reentry?: { since: LocalDate; habits: Habit[] };
   /** Hinweiskarte bei Mustern (Abschnitt 4.5); nur für heute. */
   hint?: { habits: Habit[] };
+  /** Anstehender Wochenrückblick; nur für heute. */
+  review?: ReviewWeek;
   /** Abend-Karte: nur für heute, ab der eingestellten Uhrzeit, solange der Tag nicht abgeschlossen ist. */
   eveningCard: boolean;
   /** Der angezeigte Tag ist abgeschlossen. */
@@ -97,6 +101,8 @@ export async function loadTodayView(ctx: AppContext, requestedDay?: LocalDate): 
     if (reentry) view.reentry = { since: reentry.since, habits: active.filter((h) => reentry.habitIds.includes(h.id)) };
     const hint = hintFor(data, derived, now);
     if (hint) view.hint = hint;
+    const review = reviewCardFor(data, derived, now);
+    if (review) view.review = review;
   }
   return view;
 }

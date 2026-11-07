@@ -2,7 +2,7 @@
 
 Live ist eine private, installierbare PWA ohne Backend. Alle Daten liegen in IndexedDB auf dem Gerät. Es gibt keine Netzwerkabhängigkeit, keine externen Fonts oder CDNs, keine Analytics und keine Telemetrie.
 
-Dieses Dokument wächst mit den Schritten. Stand: Schritt 6 (Score und Verlauf).
+Dieses Dokument wächst mit den Schritten. Stand: Schritt 7 (Wochenrückblick).
 
 ## Schichten
 
@@ -63,13 +63,15 @@ Der Router arbeitet über den Hash (`#/heute`, `#/plan`, …, siehe E-005). Assi
 - `#/verlauf?monat=<YYYY-MM>`: Niveau mit Diagramm und Wochentabelle, Kalender je Habit mit Ereignissen, Befinden. Die Sicht baut `loadHistoryView` (`src/app/history.ts`); die Diagramme sind selbst gezeichnetes SVG in `src/ui/screens/history.ts`.
 - `#/info`: Infoseite „Über Live“ (erreichbar aus Verlauf und Einstellungen).
 - Die Hinweiskarte auf „Heute“ kommt aus `src/app/hint.ts` (`hintFor`, `markHintShown`, `chooseHint`), siehe E-038.
+- `#/wochenrueckblick`: Wochenrückblick (Fragen je Habit im Aufbau, kompakte Liste, Abschluss und Überspringen). Use Cases in `src/app/review.ts`, Regeln (Woche, Fälligkeit, Automatik, Vorschläge) in `src/domain/review.ts`. Die Auswahlknöpfe teilt sich der Bildschirm über `src/ui/toggles.ts` mit dem Abend-Check-in. Vorrang der Karten auf „Heute“ siehe E-046.
+- `#/einstellungen`: Erscheinungsbild und Wochenrückblick (an/aus, Wochentag, Vorschläge).
 
 ## Transaktionen
 
 - `commit(ChangeSet)` schreibt alle betroffenen Stores in **einer** Transaktion: alles oder nichts. Der erste Start legt so Ziel, Habit, Ereignisse und Abschluss gemeinsam an.
 - `upsertCheckIn(habitId, localDate, update)` liest und schreibt den Check-in eines Tages in einer Transaktion. Parallele Aufrufe (Doppeltipp) sehen sich gegenseitig, es entsteht genau ein Eintrag.
 - `closeDay` (`src/app/evening.ts`) schreibt Tagesdatensatz (Stimmung, Energie, Abschlusszeit) und alle Antworten des Abend-Check-ins über `commit` in einer Transaktion. Bestehende Check-ins desselben Tages werden aktualisiert, nicht verdoppelt.
-- `replaceAll(snapshot)` ersetzt den gesamten Bestand transaktional (für den Import, ab Schritt 7).
+- `replaceAll(snapshot)` ersetzt den gesamten Bestand transaktional (für den Import, ab Schritt 8).
 
 ## Abgeleitete Werte
 
@@ -103,8 +105,8 @@ Die Rechenregeln liegen als reine Funktionen in `src/domain/scoring/` und lesen 
 
 ## Tests
 
-- `tests/unit/`: Domain-Logik (Datum inklusive Sommerzeit, Planung, Status, Check-in, Erfüllung, Integration, Score, Korridor, Vergleich, Hinweislogik, Abend und Ausweichliste)
-- `tests/integration/`: Repository und Use Cases gegen fake-indexeddb (Transaktionen, eindeutiger Index, Migrationen, erste Schleife, Planung, Bearbeiten/Pausieren/Löschen/Wiedereinstieg, Tagesabschluss, Ausnahmetage, Gegen-Habits, Verlauf und Hinweiskarte mit den Testdaten)
+- `tests/unit/`: Domain-Logik (Datum inklusive Sommerzeit, Planung, Status, Check-in, Erfüllung, Integration, Score, Korridor, Vergleich, Hinweislogik, Abend, Ausweichliste und Wochenrückblick)
+- `tests/integration/`: Repository und Use Cases gegen fake-indexeddb (Transaktionen, eindeutiger Index, Migrationen, erste Schleife, Planung, Bearbeiten/Pausieren/Löschen/Wiedereinstieg, Tagesabschluss, Ausnahmetage, Gegen-Habits, Verlauf und Hinweiskarte mit den Testdaten, Wochenrückblick)
 - `tests/e2e/`: Playwright in Chromium mit Pixel-8-Viewport und Desktop; gemeinsame Abläufe in `tests/e2e/helpers.ts`
 
 ## Grenzen der PWA

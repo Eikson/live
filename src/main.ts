@@ -11,6 +11,9 @@ import { h } from './ui/dom';
 import { navigate, parseParams, parseRoute, routeHref, type Route } from './ui/router';
 import type { Screen, ScreenEnv } from './ui/screen';
 import { renderStorageError } from './ui/screens/error';
+import { avoidanceListScreen } from './ui/screens/avoidance-list';
+import { counterNewScreen } from './ui/screens/counter-new';
+import { eveningScreen } from './ui/screens/evening';
 import { goalEditScreen } from './ui/screens/goal-edit';
 import { goalNewScreen } from './ui/screens/goal-new';
 import { habitEditScreen } from './ui/screens/habit-edit';
@@ -32,6 +35,9 @@ const SCREENS: Record<Route, Screen> = {
   'gewohnheit-neu': habitNewScreen,
   'ziel-bearbeiten': goalEditScreen,
   'gewohnheit-bearbeiten': habitEditScreen,
+  abend: eveningScreen,
+  'gegen-habit-neu': counterNewScreen,
+  ausweichliste: avoidanceListScreen,
 };
 
 /** Seiten, die bei einem Tageswechsel neu aufgebaut werden (keine Formulare mit offenen Eingaben). */

@@ -2,7 +2,7 @@
 
 Live ist eine private, installierbare PWA ohne Backend. Alle Daten liegen in IndexedDB auf dem Gerät. Es gibt keine Netzwerkabhängigkeit, keine externen Fonts oder CDNs, keine Analytics und keine Telemetrie.
 
-Dieses Dokument wächst mit den Schritten. Stand: Schritt 3 (Planung).
+Dieses Dokument wächst mit den Schritten. Stand: Schritt 5 (Abend).
 
 ## Schichten
 
@@ -57,11 +57,15 @@ Der Router arbeitet über den Hash (`#/heute`, `#/plan`, …, siehe E-005). Assi
 - Plan-Aktionen (Bearbeiten, Pausieren, Fortsetzen, Archivieren, Löschen) hängen am aufgeklappten Habit. Endgültige Aktionen fragen direkt an Ort und Stelle nach; der Fokus wandert auf die Frage und bei „Abbrechen“ zurück.
 - Die Wiedereinstiegskarte erscheint auf „Heute“ über den Karten. Ob sie ausgeblendet wurde, steht in `src/platform/ui-memory.ts` (localStorage, unkritisch).
 - „Heute“ hält den gewählten Tag nur im Bildschirm. Nachtragen lädt dieselbe Sicht für einen der letzten sieben Tage.
+- `#/abend?tag=<YYYY-MM-DD>`: Abend-Check-in (Stimmung, Energie, Gegen-Habits, Ausweichliste, offene Aufbau-Habits) und Ausnahmetag. Ohne `tag` gilt heute; die Tagauswahl (`src/ui/day-picker.ts`) teilt sich der Bildschirm mit „Heute“. Use Cases in `src/app/evening.ts`, reine Regeln in `src/domain/evening.ts`.
+- `#/gegen-habit-neu`: neues Gegen-Habit, vordefiniert (höchstens je eins) oder eigenes. Bearbeiten läuft über `#/gewohnheit-bearbeiten`, das bei Gegen-Habits ein eigenes kurzes Formular zeigt. Use Cases in `src/app/counter-habits.ts`.
+- `#/ausweichliste`: persönliche Ausweichliste (hinzufügen, umbenennen, sortieren, ausblenden, löschen). Prüfung und Reihenfolge in `src/domain/avoidance.ts`.
 
 ## Transaktionen
 
 - `commit(ChangeSet)` schreibt alle betroffenen Stores in **einer** Transaktion: alles oder nichts. Der erste Start legt so Ziel, Habit, Ereignisse und Abschluss gemeinsam an.
 - `upsertCheckIn(habitId, localDate, update)` liest und schreibt den Check-in eines Tages in einer Transaktion. Parallele Aufrufe (Doppeltipp) sehen sich gegenseitig, es entsteht genau ein Eintrag.
+- `closeDay` (`src/app/evening.ts`) schreibt Tagesdatensatz (Stimmung, Energie, Abschlusszeit) und alle Antworten des Abend-Check-ins über `commit` in einer Transaktion. Bestehende Check-ins desselben Tages werden aktualisiert, nicht verdoppelt.
 - `replaceAll(snapshot)` ersetzt den gesamten Bestand transaktional (für den Import, ab Schritt 7).
 
 ## Abgeleitete Werte
@@ -82,8 +86,8 @@ Bereits umgesetzt ist die Integration (30-Tage-Fenster, Eintritt ab 80 %, Austri
 
 ## Tests
 
-- `tests/unit/`: Domain-Logik (Datum inklusive Sommerzeit, Planung, Status, Check-in, Erfüllung, Integration)
-- `tests/integration/`: Repository und Use Cases gegen fake-indexeddb (Transaktionen, eindeutiger Index, Migrationen, erste Schleife, Planung, Bearbeiten/Pausieren/Löschen/Wiedereinstieg)
+- `tests/unit/`: Domain-Logik (Datum inklusive Sommerzeit, Planung, Status, Check-in, Erfüllung, Integration, Abend und Ausweichliste)
+- `tests/integration/`: Repository und Use Cases gegen fake-indexeddb (Transaktionen, eindeutiger Index, Migrationen, erste Schleife, Planung, Bearbeiten/Pausieren/Löschen/Wiedereinstieg, Tagesabschluss, Ausnahmetage, Gegen-Habits)
 - `tests/e2e/`: Playwright in Chromium mit Pixel-8-Viewport und Desktop; gemeinsame Abläufe in `tests/e2e/helpers.ts`
 
 ## Grenzen der PWA

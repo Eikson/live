@@ -469,7 +469,8 @@ legend {
 }
 
 .habit-card .label,
-.reentry .label {
+.reentry .label,
+.evening-card .label {
   color: var(--muted);
   font-size: 0.875rem;
   margin: 0;
@@ -698,6 +699,151 @@ legend {
 .day-picker .button[aria-pressed='true'] {
   background: var(--accent);
   color: var(--accent-text);
+}
+
+/* Abend-Check-in */
+.toggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.button.toggle {
+  border-color: var(--border);
+  color: var(--text);
+  font-weight: 500;
+  padding: 0 var(--space-3);
+}
+
+.button.toggle[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.rating .button.toggle {
+  min-width: var(--touch);
+}
+
+.chips .button.toggle {
+  border-radius: 999px;
+}
+
+.evening-block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.evening-block h2 {
+  margin: 0;
+}
+
+.evening-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.evening-item__title {
+  margin: 0;
+  font-weight: 600;
+}
+
+.close-row {
+  align-items: center;
+}
+
+.evening-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.evening-card p {
+  margin: 0;
+}
+
+.evening-entry {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.evening-entry p {
+  margin: 0;
+}
+
+.exception p {
+  margin: 0 0 var(--space-2);
+}
+
+.exception-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* Einzeiliges Formular (Ausweichliste) */
+.inline-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.inline-form > label {
+  font-weight: 600;
+}
+
+.inline-form__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.inline-form__row input {
+  flex: 1 1 12rem;
+  width: auto;
+}
+
+.choice__hint {
+  display: block;
+}
+
+/* Kein margin-top: Den Abstand im Bildschirm setzt .screen. */
+.avoidance-items {
+  list-style: none;
+  margin-bottom: 0;
+  padding-left: var(--space-4);
+  padding-right: var(--space-4);
+}
+
+ul.avoidance-items {
+  padding-top: var(--space-2);
+  padding-bottom: var(--space-2);
+}
+
+details .avoidance-items {
+  margin-top: var(--space-2);
+  padding: 0;
+}
+
+.avoidance-item + .avoidance-item {
+  border-top: 1px solid var(--border);
+}
+
+.avoidance-item {
+  padding: var(--space-3) 0;
+}
+
+.avoidance-item__label {
+  margin: 0 0 var(--space-2);
+  overflow-wrap: anywhere;
+}
+
+.avoidance-item .item-actions {
+  margin-bottom: 0;
 }
 
 .error-screen {

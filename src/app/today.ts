@@ -1,10 +1,11 @@
 import { isWithinBackfill } from '../domain/check-in';
 import { addDays, dateRange, type LocalDate } from '../domain/local-date';
 import { appConfig } from '../domain/app-config';
+import { isEveningCardTime } from '../domain/evening';
 import { findReentry } from '../domain/reentry';
 import { nextScheduledDate } from '../domain/schedule';
 import type { CheckIn, Habit, Preferences } from '../domain/types';
-import { today } from '../platform/clock';
+import { minutesOfDay, today } from '../platform/clock';
 import type { AppContext } from './context';
 import { derive } from './derived';
 
@@ -29,6 +30,10 @@ export interface TodayView {
   cards: TodayCard[];
   /** Wiedereinstiegskarte; nur für heute, nicht beim Nachtragen. */
   reentry?: { since: LocalDate; habits: Habit[] };
+  /** Abend-Karte: nur für heute, ab der eingestellten Uhrzeit, solange der Tag nicht abgeschlossen ist. */
+  eveningCard: boolean;
+  /** Der angezeigte Tag ist abgeschlossen. */
+  dayClosed: boolean;
 }
 
 /**
@@ -64,7 +69,16 @@ export async function loadTodayView(ctx: AppContext, requestedDay?: LocalDate): 
     );
 
   const days = dateRange(addDays(now, -appConfig.checkInBackfillDays), now).reverse();
-  const view: TodayView = { today: now, day, days, preferences: data.preferences, cards };
+  const dayClosed = data.dayRecords.some((r) => r.localDate === day && r.closedAt !== undefined);
+  const view: TodayView = {
+    today: now,
+    day,
+    days,
+    preferences: data.preferences,
+    cards,
+    dayClosed,
+    eveningCard: day === now && !dayClosed && isEveningCardTime(minutesOfDay(ctx.clock), data.preferences.eveningCardFrom),
+  };
   if (day === now) {
     const active = data.habits.filter((h) => h.kind === 'BUILD' && derived.timeline(h).isActiveOn(now));
     const reentry = findReentry({

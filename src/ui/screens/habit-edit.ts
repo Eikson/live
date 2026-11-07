@@ -1,5 +1,8 @@
+import type { AppContext } from '../../app/context';
 import { loadEditableHabit } from '../../app/plan';
 import { updateHabit } from '../../app/planning';
+import { isPredefinedCounterKind } from '../../domain/evening';
+import type { Habit } from '../../domain/types';
 import { de } from '../../i18n/de';
 import { h, uid } from '../dom';
 import { createEditForm } from '../edit-form';
@@ -40,6 +43,7 @@ export const habitEditScreen: Screen = async ({ ctx, params }) => {
   }
 
   const { habit } = item;
+  if (habit.kind !== 'BUILD') return counterEditForm(ctx, habit);
   const d = habitDraftOf(habit);
   const focus = params.get('fokus') ?? '';
 
@@ -96,3 +100,46 @@ export const habitEditScreen: Screen = async ({ ctx, params }) => {
   }
   return form.root;
 };
+
+/** Gegen-Habit bearbeiten: vordefinierte nur das Gewicht, eigene auch den Text. */
+function counterEditForm(ctx: AppContext, habit: Habit): HTMLElement {
+  const d = habitDraftOf(habit);
+  const predefined = isPredefinedCounterKind(habit.kind);
+  const form = createEditForm({
+    heading: de.counterEdit.heading,
+    cancelHref: routeHref('plan'),
+    view: () => {
+      const text = predefined
+        ? undefined
+        : habitTextPart(d, 'actionText', { label: de.counterNew.customLabel, hint: de.counterNew.customHint });
+      const weight = weightPart(d);
+      return {
+        nodes: [
+          predefined ? h('p', { class: 'muted' }, habit.actionText) : null,
+          predefined ? h('p', { class: 'hint' }, de.counterEdit.fixedText) : null,
+          ...(text?.nodes ?? []),
+          ...weight.nodes,
+          h('p', { class: 'hint', 'data-role': 'edit-note' }, de.habitEdit.fromToday),
+        ],
+        check: () => checkAll(text ? [text, weight] : [weight]),
+      };
+    },
+    save: async () => {
+      const result = await updateHabit(ctx, habit.id, {
+        actionText: d.actionText,
+        weight: d.weight,
+        copingPlans: [],
+        schedule: { type: 'DAILY' },
+      });
+      if (result.ok) {
+        navigate('plan', { replace: true, params: { gespeichert: habit.id, meldung: result.changed ? 'bearbeitet' : 'unveraendert' } });
+      } else if ('error' in result) {
+        navigate('plan', { replace: true });
+      } else {
+        throw new Error('invalid'); // Die Prüfung im Formular hat dasselbe schon abgefangen.
+      }
+    },
+  });
+  form.render();
+  return form.root;
+}

@@ -12,16 +12,18 @@ import {
   planStep,
 } from '../habit-steps';
 import type { Screen } from '../screen';
-import { createWizard } from '../wizard';
+import { createWizard, type Wizard } from '../wizard';
 
 const t = de.onboarding;
 
 export const onboardingScreen: Screen = async ({ ctx, onboardingDone }) => {
   const goal = emptyGoalDraft();
   const habit = emptyHabitDraft();
+  /** Die beiden vordefinierten Gegen-Habits gleich mit anlegen (letzter Schritt, freiwillig). */
+  let counters = false;
 
   const wizard = createWizard({
-    total: 8,
+    total: 9,
     view: (w) => {
       switch (w.step) {
         case 1:
@@ -38,29 +40,62 @@ export const onboardingScreen: Screen = async ({ ctx, onboardingDone }) => {
           return cueStep(w, habit);
         case 7:
           return habitTextStep(w, habit, 'minimumText', t.minimumTitle, t.minimumHint);
+        case 8:
+          return planStep(w, habit, { submitLabel: de.common.next });
         default:
-          return planStep(w, habit, { submitLabel: t.finish });
+          return w.frame(
+            t.countersTitle,
+            [
+              h('p', null, t.countersBody),
+              h('p', { class: 'hint' }, t.countersHint),
+              h(
+                'div',
+                { class: 'actions' },
+                h(
+                  'button',
+                  {
+                    type: 'button',
+                    class: 'button quiet',
+                    'data-role': 'counters-later',
+                    onclick: () => {
+                      counters = false;
+                      void finish(w);
+                    },
+                  },
+                  t.countersLater,
+                ),
+              ),
+            ],
+            () => {
+              counters = true;
+              return undefined;
+            },
+            t.countersSetup,
+          );
       }
     },
-    finish: (w) =>
-      w.save(async () => {
-        const result = await completeOnboarding(ctx, { goal: goalInputOf(goal), habit: habitInputOf(habit) });
-        if (result.ok) {
-          onboardingDone();
-          return;
-        }
-        // Sollte durch die Prüfung je Schritt nicht vorkommen; zurück zum ersten betroffenen Schritt.
-        const g = result.goalErrors;
-        const e = result.habitErrors;
-        if (g.title) return 2;
-        if (g.why) return 3;
-        if (g.successSignal) return 4;
-        if (e.actionText) return 5;
-        if (e.cue || e.schedule) return 6;
-        if (e.minimumText) return 7;
-        return 8;
-      }),
+    finish: (w) => finish(w),
   });
+
+  function finish(w: Wizard): Promise<void> {
+    return w.save(async () => {
+      const result = await completeOnboarding(ctx, { goal: goalInputOf(goal), habit: habitInputOf(habit), counters });
+      if (result.ok) {
+        onboardingDone();
+        return;
+      }
+      // Sollte durch die Prüfung je Schritt nicht vorkommen; zurück zum ersten betroffenen Schritt.
+      const g = result.goalErrors;
+      const e = result.habitErrors;
+      if (g.title) return 2;
+      if (g.why) return 3;
+      if (g.successSignal) return 4;
+      if (e.actionText) return 5;
+      if (e.cue || e.schedule) return 6;
+      if (e.minimumText) return 7;
+      return 8;
+    });
+  }
 
   wizard.render();
   return wizard.root;

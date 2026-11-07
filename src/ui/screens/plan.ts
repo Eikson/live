@@ -33,6 +33,7 @@ const MESSAGES: Record<string, string> = {
   bearbeitet: de.plan.edited,
   unveraendert: de.plan.unchanged,
   ziel: de.plan.goalSaved,
+  'gegen-habit': de.plan.counterSaved,
 };
 
 function actionBar(specs: ActionSpec[], extra: Child[] = []): HTMLElement {
@@ -127,7 +128,9 @@ function habitItem(item: PlanHabit, view: PlanView, on: Handlers, opts: { showGo
   if (habit.copingPlans.length > 0) {
     rows.push([de.plan.coping, habit.copingPlans.map((p) => h('span', { class: 'fact-line' }, formatCopingPlan(p)))]);
   }
-  rows.push([de.plan.rhythm, formatSchedule(habit.schedule)]);
+  // Gegen-Habits werden jeden Abend gefragt; ein Rhythmus gehört nicht zu ihnen.
+  const counter = habit.kind !== 'BUILD';
+  if (!counter) rows.push([de.plan.rhythm, formatSchedule(habit.schedule)]);
   rows.push([de.plan.weightLabel, String(habit.weight)]);
 
   return h(
@@ -140,13 +143,22 @@ function habitItem(item: PlanHabit, view: PlanView, on: Handlers, opts: { showGo
         'summary',
         null,
         h('span', { class: 'habit-item__title' }, habit.actionText),
-        h('span', { class: 'habit-item__meta' }, `${de.plan.weight(habit.weight)} · ${de.plan.status[badge]}`),
+        h(
+          'span',
+          { class: 'habit-item__meta' },
+          counter && habit.status === 'ACTIVE'
+            ? de.plan.weight(habit.weight)
+            : `${de.plan.weight(habit.weight)} · ${de.plan.status[badge]}`,
+        ),
       ),
       h(
         'dl',
         { class: 'facts' },
         rows.flatMap(([k, v]) => [h('dt', null, k), h('dd', null, ...(Array.isArray(v) ? v : [v]))]),
       ),
+      habit.kind === 'COUNTER_AVOIDANCE'
+        ? h('a', { class: 'button link', href: routeHref('ausweichliste'), 'data-role': 'edit-avoidance' }, de.plan.editList)
+        : null,
       habitActions(item, view, on),
     ),
   );
@@ -278,6 +290,28 @@ function build(view: PlanView, highlight: string | null, status: Status | undefi
       ),
     );
   }
+
+  const countersTitle = 'plan-counters-title';
+  nodes.push(
+    h(
+      'section',
+      { class: 'card counters', 'aria-labelledby': countersTitle, 'data-role': 'counters' },
+      h('h2', { id: countersTitle }, de.plan.counters),
+      view.counters.length > 0
+        ? h(
+            'ul',
+            { class: 'habit-list' },
+            view.counters.map((item) => habitItem(item, view, on, { open: item.habit.id === highlight })),
+          )
+        : h('p', { class: 'muted' }, de.plan.countersEmpty),
+      view.counterHint ? h('p', { class: 'hint' }, de.plan.counterHint) : null,
+      h(
+        'a',
+        { class: 'button quiet add-link', href: routeHref('gegen-habit-neu'), 'aria-label': de.plan.addCounterLabel },
+        de.plan.addCounter,
+      ),
+    ),
+  );
 
   const groups: [string, string, PlanHabit[]][] = [
     ['drafts', de.plan.drafts, view.drafts],

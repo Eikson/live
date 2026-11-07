@@ -10,6 +10,7 @@ import { de } from '../../i18n/de';
 import { h, icon, icons, uid } from '../dom';
 import { formatCue, formatDayShort, formatWeekdayShort } from '../format';
 import { dismissReentry, isReentryDismissed } from '../../platform/ui-memory';
+import { dayPicker } from '../day-picker';
 import { navigate, routeHref } from '../router';
 import type { Screen } from '../screen';
 
@@ -402,35 +403,30 @@ function reentryCard(
   return article;
 }
 
-/** Auswahl des Tages: heute oder bis zu sieben Tage zurück. */
-function dayPicker(view: TodayView, onPick: (day: LocalDate) => void): HTMLElement {
-  return h(
-    'details',
-    { class: 'day-picker', open: view.day !== view.today },
-    h('summary', { class: 'button link' }, de.today.pickDay),
-    h('p', { class: 'hint' }, de.today.backfillHint(appConfig.checkInBackfillDays)),
-    h(
-      'ul',
-      { 'aria-label': de.today.pickDayLabel },
-      view.days.map((d) =>
-        h(
-          'li',
-          null,
-          h(
-            'button',
-            {
-              type: 'button',
-              class: 'button quiet',
-              'aria-pressed': String(d === view.day),
-              'data-day': d,
-              onclick: () => onPick(d),
-            },
-            d === view.today ? de.today.todayOption : formatDayShort(d),
-          ),
-        ),
-      ),
-    ),
-  );
+/**
+ * Zugang zum Abend-Check-in. Ab der eingestellten Uhrzeit als ruhige Karte (nicht neben der
+ * Wiedereinstiegskarte), sonst als schlichter Link. Ein abgeschlossener Tag lässt sich ändern.
+ */
+function eveningEntry(view: TodayView, reentryShown: boolean): HTMLElement {
+  const href = routeHref('abend', view.day === view.today ? undefined : { tag: view.day });
+  if (view.dayClosed) {
+    return h(
+      'div',
+      { class: 'evening-entry', 'data-role': 'evening-entry' },
+      h('p', { class: 'muted' }, de.today.dayClosed),
+      h('a', { class: 'button quiet', href }, de.today.changeEvening),
+    );
+  }
+  if (view.eveningCard && !reentryShown) {
+    return h(
+      'div',
+      { class: 'card evening-card', 'data-role': 'evening-card' },
+      h('p', { class: 'label' }, de.today.eveningLabel),
+      h('p', null, de.today.eveningQuestion),
+      h('a', { class: 'button primary', href }, de.today.closeDay),
+    );
+  }
+  return h('div', { class: 'evening-entry', 'data-role': 'evening-entry' }, h('a', { class: 'button quiet', href }, de.today.closeDay));
 }
 
 export const todayScreen: Screen = async ({ ctx }) => {
@@ -462,7 +458,8 @@ export const todayScreen: Screen = async ({ ctx }) => {
 
     const statusLine = h('p', { class: 'status-line', role: 'status', tabindex: '-1', 'data-role': 'today-status' }, status ?? '');
     nodes.push(statusLine);
-    if (view.reentry && !isReentryDismissed(view.reentry.since)) {
+    const reentryShown = Boolean(view.reentry && !isReentryDismissed(view.reentry.since));
+    if (view.reentry && reentryShown) {
       nodes.push(
         reentryCard(ctx, view.reentry, (text) => {
           void show(undefined, false, text).then(() => {
@@ -488,6 +485,7 @@ export const todayScreen: Screen = async ({ ctx }) => {
     } else {
       for (const card of view.cards) nodes.push(habitCard(ctx, card, view.day, past));
     }
+    nodes.push(eveningEntry(view, reentryShown));
     nodes.push(dayPicker(view, (d) => void show(d, true)));
     section.replaceChildren(...nodes);
     if (focus) heading.focus();

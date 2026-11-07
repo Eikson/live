@@ -10,6 +10,8 @@ export interface OnboardOptions {
   /** Ausgeschriebene Wochentage, z. B. „Montag“. Ohne Angabe: täglich. */
   weekdays?: string[];
   coping?: { obstacle: string; response: string };
+  /** Im letzten Schritt die beiden vordefinierten Gegen-Habits einrichten. */
+  counters?: boolean;
 }
 
 /** Erster Start mit den Pflichtangaben; optionale Fragen werden übersprungen. */
@@ -46,7 +48,10 @@ export async function onboard(page: Page, options: OnboardOptions = {}): Promise
     await row.getByRole('textbox', { name: 'Wenn … dazwischenkommt' }).fill(options.coping.obstacle);
     await row.getByRole('textbox', { name: 'dann …' }).fill(options.coping.response);
   }
-  await page.getByRole('button', { name: 'Plan speichern' }).click();
+  await next(page);
+
+  await expect(page.getByRole('heading', { name: 'Abends zusätzlich festhalten?' })).toBeVisible();
+  await page.getByRole('button', { name: options.counters ? 'Einrichten' : 'Später' }).click();
 
   await expect(page.getByRole('heading', { level: 1 })).toContainText('Heute');
   const card = page.locator('article.habit-card');

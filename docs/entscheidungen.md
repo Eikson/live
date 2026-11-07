@@ -95,3 +95,33 @@ Archivieren und Löschen fragen nicht in einem Dialog nach, sondern ersetzen die
 ## E-023 Eindeutige Reihenfolge im Änderungsprotokoll
 
 Ereignisse am selben Tag werden nach Zeitstempel sortiert. Zwei Aktionen in derselben Millisekunde (oder eine zurückgestellte Uhr) hätten die Reihenfolge offen gelassen, z. B. Pausieren und sofortiges Fortsetzen. Neue Ereignisse bekommen deshalb mindestens den letzten gespeicherten Zeitstempel plus eine Millisekunde (`eventTime`).
+
+## E-024 Abend-Check-in speichert beim Abschließen
+
+Der Abend-Check-in sammelt Stimmung, Energie, Gegen-Habits, die Ausweichliste und noch offene Aufbau-Habits auf einem Bildschirm. Gespeichert wird erst mit „Tag abschließen“, dann aber alles in einer Transaktion (`closeDay`). So entsteht kein halb gespeicherter Abend, und ein Doppeltipp erzeugt keine doppelten Einträge. Ein abgeschlossener Tag bleibt änderbar; der Bildschirm sagt das ruhig dazu („Dieser Tag ist abgeschlossen. Du kannst die Angaben noch ändern.“).
+
+## E-025 Abend-Karte ab 18:00
+
+Auf „Heute“ erscheint ab `appConfig.eveningCardFrom` (18:00) eine Karte zum Abend-Check-in. Vorher und wenn die Wiedereinstiegskarte sichtbar ist, gibt es nur einen unauffälligen Link, damit nie zwei Aufforderungen gleichzeitig oben stehen. Nach dem Abschließen steht dort „Tag abgeschlossen.“ mit einem Link zum Ändern.
+
+## E-026 Stimmung und Energie
+
+Beide Angaben sind freiwillige Stufen 1–5 als Umschaltknöpfe. Ein zweiter Tipp auf die gewählte Stufe hebt die Auswahl auf. Eine bereits gespeicherte Angabe lässt sich ändern, aber nicht leeren, weil „nicht angegeben“ und „gelöscht“ sonst nicht unterscheidbar wären.
+
+## E-027 Gegen-Habits
+
+Die beiden vordefinierten Gegen-Habits (Aufschieben, Ausweichen) gibt es höchstens je einmal; ihr Text ist fest, nur das Gewicht lässt sich ändern. Eigene Gegen-Habits haben einen frei bearbeitbaren Text. Gegen-Habits haben keinen Rhythmus, werden jeden Abend gefragt und zählen nicht zur Grenze von zwei Habits im Aufbau. Ab mehr als fünf aktiven Gegen-Habits erscheint ein ruhiger Hinweis, dass der Abend länger dauert; verboten wird nichts.
+
+Im ersten Start fragt ein letzter, freiwilliger Schritt, ob du abends zusätzlich festhalten willst. „Einrichten“ legt beide vordefinierten Gegen-Habits an, „Später“ keines.
+
+## E-028 Ausweichliste
+
+Die App liefert keine vorgegebenen Einträge. Doppelte Einträge werden ohne Groß-/Kleinschreibung erkannt. Ausgeblendete Einträge erscheinen nicht mehr im Abend-Check-in, frühere Angaben bleiben erhalten. Gelöschte Einträge verschwinden aus der Liste; frühere Tage zeigen dafür „+ n gelöschter Eintrag“, am Ergebnis des Tages ändert das nichts. Ein im Abend schnell ergänzter Eintrag ist sofort abgehakt, weil er gerade deshalb hinzugefügt wird.
+
+## E-029 Ausnahmetage
+
+Gründe sind „Krank“, „Urlaub“ und „Anderes“, dazu eine freiwillige Notiz (als Text dargestellt, nie als HTML). Ein Ausnahmetag wird sofort gesetzt und aufgehoben, ohne „Tag abschließen“. Er zählt in keinem Durchschnitt, keiner Quote und keiner Hinweislogik; Angaben des Tages bleiben gespeichert. Ausnahmetage lassen sich für heute und frühere Tage setzen, nicht für die Zukunft.
+
+## E-030 Formulierung für frühere Tage
+
+Beim Nachtragen heißt „nicht gemacht“ für Aufbau-Habits „An dem Tag nicht“. Das beschreibt den Tag, ohne zu werten.

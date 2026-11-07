@@ -1,7 +1,9 @@
 import { appConfig } from '../domain/app-config';
+import { needsCounterHint, type PredefinedCounterKind } from '../domain/evening';
 import type { Goal, Habit } from '../domain/types';
 import { today } from '../platform/clock';
 import type { AppContext } from './context';
+import { availablePredefined } from './counter-habits';
 import { derive } from './derived';
 
 export type HabitBadge = 'BUILDING' | 'INTEGRATED' | 'DRAFT' | 'PAUSED' | 'ARCHIVED';
@@ -21,6 +23,12 @@ export interface PlanView {
   drafts: PlanHabit[];
   paused: PlanHabit[];
   archived: PlanHabit[];
+  /** Aktive Gegen-Habits (vordefinierte zuerst). */
+  counters: PlanHabit[];
+  /** Vordefinierte Gegen-Habits, die sich noch anlegen lassen. */
+  predefinedAvailable: PredefinedCounterKind[];
+  /** Mehr als 5 aktive Gegen-Habits. */
+  counterHint: boolean;
   buildingCount: number;
   hasFreeSlot: boolean;
 }
@@ -37,12 +45,18 @@ export async function loadPlanView(ctx: AppContext): Promise<PlanView> {
     const goalTitle = habit.goalId ? goalTitles.get(habit.goalId) : undefined;
     const canResume =
       habit.status === 'PAUSED'
-        ? derived.buildingCount < appConfig.maxBuildingHabits || derived.isIntegrated(habit)
+        ? habit.kind !== 'BUILD' || derived.buildingCount < appConfig.maxBuildingHabits || derived.isIntegrated(habit)
         : undefined;
     return { habit, badge, ...(goalTitle ? { goalTitle } : {}), ...(canResume !== undefined ? { canResume } : {}) };
   };
-  const build = data.habits.filter((h) => h.kind === 'BUILD').sort(byCreated);
-  const withStatus = (status: Habit['status']) => build.filter((h) => h.status === status).map(item);
+  const all = [...data.habits].sort(byCreated);
+  const build = all.filter((h) => h.kind === 'BUILD');
+  const counterRank = (h: Habit) => (h.kind === 'COUNTER_PROCRASTINATION' ? 0 : h.kind === 'COUNTER_AVOIDANCE' ? 1 : 2);
+  const counters = all
+    .filter((h) => h.kind !== 'BUILD' && h.status === 'ACTIVE')
+    .sort((a, b) => counterRank(a) - counterRank(b) || byCreated(a, b));
+  // Entwürfe, Pausiert und Archiviert sammeln normale Habits und Gegen-Habits.
+  const withStatus = (status: Habit['status']) => all.filter((h) => h.status === status).map(item);
 
   return {
     goals: data.goals
@@ -55,6 +69,9 @@ export async function loadPlanView(ctx: AppContext): Promise<PlanView> {
     drafts: withStatus('DRAFT'),
     paused: withStatus('PAUSED'),
     archived: withStatus('ARCHIVED'),
+    counters: counters.map(item),
+    predefinedAvailable: availablePredefined(data),
+    counterHint: needsCounterHint(counters.length),
     buildingCount: derived.buildingCount,
     hasFreeSlot: derived.buildingCount < appConfig.maxBuildingHabits,
   };

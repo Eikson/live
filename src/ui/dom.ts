@@ -86,3 +86,22 @@ export function uid(prefix = 'f'): string {
   idCounter += 1;
   return `${prefix}-${idCounter}`;
 }
+
+type SvgAttrs = Record<string, string | number | undefined>;
+
+/** SVG-Element für Diagramme. Text nur als Kindknoten, nie als Markup. */
+export function svg<K extends keyof SVGElementTagNameMap>(
+  tag: K,
+  attrs: SvgAttrs = {},
+  ...children: (SVGElement | string | null | undefined | false)[]
+): SVGElementTagNameMap[K] {
+  const el = document.createElementNS(SVG_NS, tag);
+  for (const [key, value] of Object.entries(attrs)) {
+    if (value !== undefined) el.setAttribute(key, String(value));
+  }
+  for (const child of children) {
+    if (child === null || child === undefined || child === false) continue;
+    el.appendChild(typeof child === 'string' ? document.createTextNode(child) : child);
+  }
+  return el;
+}

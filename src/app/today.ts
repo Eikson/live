@@ -8,6 +8,7 @@ import type { CheckIn, Habit, Preferences } from '../domain/types';
 import { minutesOfDay, today } from '../platform/clock';
 import type { AppContext } from './context';
 import { derive } from './derived';
+import { hintFor } from './hint';
 
 export interface TodayCard {
   habit: Habit;
@@ -30,6 +31,8 @@ export interface TodayView {
   cards: TodayCard[];
   /** Wiedereinstiegskarte; nur für heute, nicht beim Nachtragen. */
   reentry?: { since: LocalDate; habits: Habit[] };
+  /** Hinweiskarte bei Mustern (Abschnitt 4.5); nur für heute. */
+  hint?: { habits: Habit[] };
   /** Abend-Karte: nur für heute, ab der eingestellten Uhrzeit, solange der Tag nicht abgeschlossen ist. */
   eveningCard: boolean;
   /** Der angezeigte Tag ist abgeschlossen. */
@@ -92,6 +95,8 @@ export async function loadTodayView(ctx: AppContext, requestedDay?: LocalDate): 
       exceptionDays: derived.exceptionDays,
     });
     if (reentry) view.reentry = { since: reentry.since, habits: active.filter((h) => reentry.habitIds.includes(h.id)) };
+    const hint = hintFor(data, derived, now);
+    if (hint) view.hint = hint;
   }
   return view;
 }

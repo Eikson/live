@@ -1,6 +1,7 @@
 import { recordCheckIn, type RecordCheckInInput } from '../../app/check-in';
 import type { AppContext } from '../../app/context';
 import { reenter, removeCheckIn } from '../../app/planning';
+import { chooseHint, markHintShown, type HintChoice } from '../../app/hint';
 import { loadTodayView, type TodayCard, type TodayView } from '../../app/today';
 import { appConfig } from '../../domain/app-config';
 import type { LocalDate } from '../../domain/local-date';
@@ -404,6 +405,115 @@ function reentryCard(
 }
 
 /**
+ * Hinweiskarte bei Mustern (Abschnitt 4.5). Beobachtung statt Urteil; jede Wahl blendet sie
+ * 7 Tage aus. „Kleiner machen“ und „Auslöser ändern“ führen ins Bearbeiten-Formular.
+ */
+function hintCard(ctx: AppContext, hint: { habits: Habit[] }, done: (status: string | undefined) => void): HTMLElement {
+  const t = de.hint;
+  const titleId = uid('hint');
+  const article = h('article', { class: 'card hint-card', 'aria-labelledby': titleId, 'data-role': 'hint' });
+  let target = hint.habits[0]?.id;
+  let busy = false;
+  let error: string | undefined;
+
+  async function choose(choice: HintChoice) {
+    if (busy) return;
+    busy = true;
+    error = undefined;
+    render();
+    let ok = false;
+    try {
+      ok = (await chooseHint(ctx, choice, target)).ok;
+    } catch {
+      ok = false;
+    }
+    busy = false;
+    if (!ok) {
+      error = de.errors.saveFailed;
+      render();
+      return;
+    }
+    if ((choice === 'SMALLER' || choice === 'CHANGE_CUE') && target) {
+      navigate('gewohnheit-bearbeiten', { params: { id: target, fokus: choice === 'SMALLER' ? 'minimum' : 'cue' } });
+      return;
+    }
+    if (choice === 'EXCEPTIONS') {
+      navigate('abend');
+      return;
+    }
+    const habit = hint.habits.find((x) => x.id === target);
+    done(choice === 'PAUSE' && habit ? de.reentry.paused(habit.actionText) : t.kept);
+  }
+
+  function render() {
+    const withHabit: [HintChoice, string][] = [
+      ['SMALLER', t.smaller],
+      ['CHANGE_CUE', t.changeCue],
+      ['PAUSE', t.pause],
+    ];
+    const choices: [HintChoice, string, boolean?][] = [
+      ['KEEP', t.keep, true],
+      ...(hint.habits.length > 0 ? withHabit : []),
+      ['EXCEPTIONS', t.exceptions],
+    ];
+    const picker =
+      hint.habits.length > 1
+        ? h(
+            'fieldset',
+            null,
+            h('legend', null, t.habitLabel),
+            h(
+              'div',
+              { class: 'choices' },
+              hint.habits.map((x) =>
+                h(
+                  'label',
+                  { class: 'choice' },
+                  h('input', {
+                    type: 'radio',
+                    name: 'hint-habit',
+                    value: x.id,
+                    checked: x.id === target,
+                    disabled: busy,
+                    onchange: () => (target = x.id),
+                  }),
+                  h('span', null, x.actionText),
+                ),
+              ),
+            ),
+          )
+        : null;
+    article.replaceChildren(
+      h('p', { class: 'label', id: titleId }, t.label),
+      h('p', null, t.text),
+      h('p', null, t.question),
+      ...(picker ? [picker] : []),
+      h(
+        'div',
+        { class: 'actions' },
+        choices.map(([choice, label, primary]) =>
+          h(
+            'button',
+            {
+              type: 'button',
+              class: `button${primary ? ' primary' : ''}`,
+              'data-choice': choice,
+              disabled: busy,
+              onclick: () => void choose(choice),
+            },
+            label,
+          ),
+        ),
+      ),
+    );
+    if (error) article.append(h('p', { class: 'form-error', role: 'alert' }, error));
+  }
+
+  render();
+  return article;
+}
+
+/**
  * Zugang zum Abend-Check-in. Ab der eingestellten Uhrzeit als ruhige Karte (nicht neben der
  * Wiedereinstiegskarte), sonst als schlichter Link. Ein abgeschlossener Tag lässt sich ändern.
  */
@@ -469,6 +579,18 @@ export const todayScreen: Screen = async ({ ctx }) => {
         }),
       );
     }
+    // Nie zwei Hinweiskarten gleichzeitig: der Wiedereinstieg hat Vorrang.
+    const hintShown = Boolean(view.hint && !reentryShown);
+    if (view.hint && hintShown) {
+      void markHintShown(ctx).catch(() => undefined);
+      nodes.push(
+        hintCard(ctx, view.hint, (text) => {
+          void show(undefined, false, text).then(() => {
+            section.querySelector<HTMLElement>(text ? '[data-role="today-status"]' : 'h1')?.focus();
+          });
+        }),
+      );
+    }
 
     if (view.cards.length === 0) {
       nodes.push(
@@ -485,7 +607,7 @@ export const todayScreen: Screen = async ({ ctx }) => {
     } else {
       for (const card of view.cards) nodes.push(habitCard(ctx, card, view.day, past));
     }
-    nodes.push(eveningEntry(view, reentryShown));
+    nodes.push(eveningEntry(view, reentryShown || hintShown));
     nodes.push(dayPicker(view, (d) => void show(d, true)));
     section.replaceChildren(...nodes);
     if (focus) heading.focus();

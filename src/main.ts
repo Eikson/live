@@ -19,6 +19,7 @@ import { goalNewScreen } from './ui/screens/goal-new';
 import { habitEditScreen } from './ui/screens/habit-edit';
 import { habitNewScreen } from './ui/screens/habit-new';
 import { historyScreen } from './ui/screens/history';
+import { infoScreen } from './ui/screens/info';
 import { onboardingScreen } from './ui/screens/onboarding';
 import { planScreen } from './ui/screens/plan';
 import { settingsScreen } from './ui/screens/settings';
@@ -30,6 +31,7 @@ const SCREENS: Record<Route, Screen> = {
   plan: planScreen,
   verlauf: historyScreen,
   einstellungen: settingsScreen,
+  info: infoScreen,
   start: onboardingScreen,
   'ziel-neu': goalNewScreen,
   'gewohnheit-neu': habitNewScreen,

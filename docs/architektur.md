@@ -2,7 +2,7 @@
 
 Live ist eine private, installierbare PWA ohne Backend. Alle Daten liegen in IndexedDB auf dem Gerät. Es gibt keine Netzwerkabhängigkeit, keine externen Fonts oder CDNs, keine Analytics und keine Telemetrie.
 
-Dieses Dokument wächst mit den Schritten. Stand: Schritt 5 (Abend).
+Dieses Dokument wächst mit den Schritten. Stand: Schritt 6 (Score und Verlauf).
 
 ## Schichten
 
@@ -60,6 +60,9 @@ Der Router arbeitet über den Hash (`#/heute`, `#/plan`, …, siehe E-005). Assi
 - `#/abend?tag=<YYYY-MM-DD>`: Abend-Check-in (Stimmung, Energie, Gegen-Habits, Ausweichliste, offene Aufbau-Habits) und Ausnahmetag. Ohne `tag` gilt heute; die Tagauswahl (`src/ui/day-picker.ts`) teilt sich der Bildschirm mit „Heute“. Use Cases in `src/app/evening.ts`, reine Regeln in `src/domain/evening.ts`.
 - `#/gegen-habit-neu`: neues Gegen-Habit, vordefiniert (höchstens je eins) oder eigenes. Bearbeiten läuft über `#/gewohnheit-bearbeiten`, das bei Gegen-Habits ein eigenes kurzes Formular zeigt. Use Cases in `src/app/counter-habits.ts`.
 - `#/ausweichliste`: persönliche Ausweichliste (hinzufügen, umbenennen, sortieren, ausblenden, löschen). Prüfung und Reihenfolge in `src/domain/avoidance.ts`.
+- `#/verlauf?monat=<YYYY-MM>`: Niveau mit Diagramm und Wochentabelle, Kalender je Habit mit Ereignissen, Befinden. Die Sicht baut `loadHistoryView` (`src/app/history.ts`); die Diagramme sind selbst gezeichnetes SVG in `src/ui/screens/history.ts`.
+- `#/info`: Infoseite „Über Live“ (erreichbar aus Verlauf und Einstellungen).
+- Die Hinweiskarte auf „Heute“ kommt aus `src/app/hint.ts` (`hintFor`, `markHintShown`, `chooseHint`), siehe E-038.
 
 ## Transaktionen
 
@@ -72,7 +75,21 @@ Der Router arbeitet über den Hash (`#/heute`, `#/plan`, …, siehe E-005). Assi
 
 Score, Integrationsstatus, Boden, Decke, Schnitte und Hinweise werden **nie gespeichert**. `src/app/derived.ts` berechnet sie bei jedem Laden aus den Rohdaten (Habits, Ereignisse, Check-ins, Tagesdatensätze). Dadurch gibt es keine veralteten Zwischenstände, und ein Import oder eine Korrektur wirkt sofort überall.
 
-Bereits umgesetzt ist die Integration (30-Tage-Fenster, Eintritt ab 80 %, Austritt unter 50 %, Abdeckung mindestens zwei Drittel, frühestens 30 Tage nach der Aktivierung). Sie bestimmt, ob ein Habit noch einen der zwei Plätze im Aufbau belegt.
+Die Rechenregeln liegen als reine Funktionen in `src/domain/scoring/` und lesen ihre Schwellen aus `config.ts`:
+
+- `fulfillment.ts`: Erfüllung je Angabe (gemacht/anders 1, kleinste Version 0,5; Gegen-Habits nein 1, teilweise 0,5, ja 0)
+- `integration.ts`: Integration (30-Tage-Fenster, Eintritt ab 80 %, Austritt unter 50 %, Abdeckung mindestens zwei Drittel, frühestens 30 Tage nach der Aktivierung). Sie bestimmt auch, ob ein Habit noch einen der zwei Plätze im Aufbau belegt.
+- `day-score.ts`: Tagesscore und Bewertbarkeit (alle geplanten Habits eingetragen, kein Ausnahmetag)
+- `corridor.ts`: Boden (Faktor 0,6) und Decke je Tag, Durchschnitte über Fenster
+- `comparison.ts`: Vergleich mit vor 6 Monaten oder den ersten Wochen
+- `wellbeing.ts`: Befinden je Tag und im Schnitt
+- `patterns.ts`: Hinweislogik und Ruhezeit der Hinweiskarte
+
+`src/app/scoring.ts` setzt daraus mit den Rohdaten den Kontext eines Tages zusammen; `history.ts` und `hint.ts` bauen darauf ihre Sichten.
+
+## Testdaten
+
+`npm run dev`, dann `/seed.html` öffnen. Die Seite ersetzt nach Rückfrage alle Daten in diesem Browser durch Testdaten über rund sieben Monate, wahlweise mit gleichmäßigem Verlauf oder mit schwacher letzter Woche (dann erscheint die Hinweiskarte). Erzeugt werden sie deterministisch von `buildSeed` in `src/dev/seed.ts`. Die Seite gehört nicht zum Build (siehe E-039).
 
 ## Migrationen
 
@@ -86,8 +103,8 @@ Bereits umgesetzt ist die Integration (30-Tage-Fenster, Eintritt ab 80 %, Austri
 
 ## Tests
 
-- `tests/unit/`: Domain-Logik (Datum inklusive Sommerzeit, Planung, Status, Check-in, Erfüllung, Integration, Abend und Ausweichliste)
-- `tests/integration/`: Repository und Use Cases gegen fake-indexeddb (Transaktionen, eindeutiger Index, Migrationen, erste Schleife, Planung, Bearbeiten/Pausieren/Löschen/Wiedereinstieg, Tagesabschluss, Ausnahmetage, Gegen-Habits)
+- `tests/unit/`: Domain-Logik (Datum inklusive Sommerzeit, Planung, Status, Check-in, Erfüllung, Integration, Score, Korridor, Vergleich, Hinweislogik, Abend und Ausweichliste)
+- `tests/integration/`: Repository und Use Cases gegen fake-indexeddb (Transaktionen, eindeutiger Index, Migrationen, erste Schleife, Planung, Bearbeiten/Pausieren/Löschen/Wiedereinstieg, Tagesabschluss, Ausnahmetage, Gegen-Habits, Verlauf und Hinweiskarte mit den Testdaten)
 - `tests/e2e/`: Playwright in Chromium mit Pixel-8-Viewport und Desktop; gemeinsame Abläufe in `tests/e2e/helpers.ts`
 
 ## Grenzen der PWA

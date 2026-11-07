@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>Live – Testdaten (nur Entwicklung)</title>
+    <style>
+      body { font-family: system-ui, sans-serif; max-width: 560px; margin: 2rem auto; padding: 0 1rem; line-height: 1.5; }
+      button { display: block; width: 100%; min-height: 48px; margin: 0.75rem 0; font-size: 1rem; }
+    </style>
+  </head>
+  <body>
+    <h1>Testdaten für Live</h1>
+    <p>Nur für die Entwicklung. Ersetzt <strong>alle</strong> Daten in diesem Browser durch Testdaten über rund sieben Monate.</p>
+    <button type="button" data-variant="ruhig">Testdaten laden (gleichmäßiger Verlauf)</button>
+    <button type="button" data-variant="muster">Testdaten laden (schwache letzte Woche, Hinweiskarte erscheint)</button>
+    <p id="status" role="status"></p>
+    <p><a href="./#/verlauf">Zum Verlauf</a> · <a href="./#/heute">Zu Heute</a></p>
+    <script type="module" src="/src/dev/seed.ts"></script>
+  </body>
+</html>

@@ -470,6 +470,7 @@ legend {
 
 .habit-card .label,
 .reentry .label,
+.hint-card .label,
 .evening-card .label {
   color: var(--muted);
   font-size: 0.875rem;
@@ -874,4 +875,263 @@ details .avoidance-items {
 
 .day-picker > summary::-webkit-details-marker {
   display: none;
+}
+
+/* Verlauf: darf breiter sein (bis 760 px), Diagramme skalieren mit. */
+.content:has(.history) {
+  max-width: 760px;
+}
+
+.history-block > * + * {
+  margin-top: var(--space-3);
+}
+
+.history-block h2,
+.history-block h3 {
+  margin: 0;
+}
+
+.level-figure {
+  margin: 0;
+}
+
+.level-value {
+  font-size: 2rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.comparison {
+  margin: 0;
+}
+
+.chart {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.chart-axis text {
+  fill: var(--muted);
+  font-size: 12px;
+}
+
+.chart-grid {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+
+.chart-band {
+  fill: var(--accent-soft);
+  stroke: var(--line);
+  stroke-width: 1;
+}
+
+.chart-line {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+}
+
+.chart-point {
+  fill: var(--surface);
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+
+.chart-marker {
+  fill: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-4);
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.chart-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.swatch {
+  display: inline-block;
+  width: 18px;
+  height: 12px;
+  flex: none;
+}
+
+.swatch-point {
+  width: 10px;
+  height: 10px;
+  border: 2px solid var(--accent);
+  border-radius: 50%;
+  background: var(--surface);
+}
+
+.swatch-band {
+  background: var(--accent-soft);
+  border: 1px solid var(--line);
+}
+
+.swatch-line {
+  height: 3px;
+  background: var(--accent);
+}
+
+.marker-key {
+  display: inline-block;
+  min-width: 1.1em;
+  text-align: center;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.table-toggle > summary {
+  width: fit-content;
+}
+
+.table-scroll {
+  overflow-x: auto;
+  margin-top: var(--space-2);
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.data-table caption {
+  text-align: left;
+  font-weight: 600;
+  padding-bottom: var(--space-2);
+}
+
+.data-table th,
+.data-table td {
+  padding: var(--space-2);
+  border-bottom: 1px solid var(--border);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.data-table th:first-child {
+  text-align: left;
+}
+
+.month-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.month-title {
+  margin: 0;
+  font-weight: 600;
+}
+
+.month-nav .icon-button {
+  font-size: 1.5rem;
+  text-decoration: none;
+}
+
+.month-nav .placeholder {
+  visibility: hidden;
+}
+
+.calendar-habit {
+  border-top: 1px solid var(--border);
+  padding-top: var(--space-3);
+}
+
+.calendar-habit p {
+  margin: var(--space-1) 0;
+}
+
+.calendar {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  margin-top: var(--space-2);
+}
+
+.calendar th {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--muted);
+  padding-bottom: var(--space-1);
+}
+
+.calendar td {
+  text-align: center;
+  vertical-align: top;
+  padding: 2px 0;
+  height: 2.6rem;
+}
+
+.cal-num {
+  display: block;
+  font-size: 0.7rem;
+  color: var(--muted);
+  line-height: 1.2;
+}
+
+.cal-sym {
+  display: block;
+  font-size: 1.05rem;
+  line-height: 1.3;
+  color: var(--accent);
+}
+
+.mark-not_done .cal-sym,
+.mark-no_entry .cal-sym,
+.mark-exception .cal-sym,
+.mark-extra .cal-sym {
+  color: var(--muted);
+}
+
+.mark-exception .cal-sym {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.calendar-legend p {
+  margin: var(--space-1) 0 0;
+}
+
+.event-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.event-list li {
+  padding: var(--space-1) 0;
+}
+
+.info h2 {
+  margin-top: 0;
+}
+
+/* Hinweiskarte auf „Heute“ */
+.hint-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.hint-card p {
+  margin: 0;
 }

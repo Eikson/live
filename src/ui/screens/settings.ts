@@ -3,6 +3,7 @@ import type { Theme } from '../../domain/types';
 import { de } from '../../i18n/de';
 import { applyTheme } from '../../platform/theme';
 import { h } from '../dom';
+import { routeHref } from '../router';
 import type { Screen } from '../screen';
 
 const THEMES: Theme[] = ['system', 'light', 'dark'];
@@ -42,5 +43,6 @@ export const settingsScreen: Screen = async ({ ctx }) => {
     h('fieldset', { class: 'card segmented' }, h('legend', null, de.settings.appearance), options),
     status,
     h('p', { class: 'muted' }, de.settings.later),
+    h('p', null, h('a', { class: 'button link', href: routeHref('info') }, de.settings.info)),
   );
 };

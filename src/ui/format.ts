@@ -29,3 +29,18 @@ export function formatSchedule(schedule: Schedule): string {
     .map((d) => de.date.weekdaysShort[d])
     .join(', ');
 }
+
+/** Eine Nachkommastelle mit deutschem Komma, z. B. „4,6“. */
+export function formatDecimal(value: number): string {
+  return value.toFixed(1).replace('.', ',');
+}
+
+/** „5. Nov.“ */
+export function formatDayMonth(date: LocalDate): string {
+  return `${dayOfMonth(date)}. ${de.date.monthsShort[monthIndex(date)]}`;
+}
+
+/** „November 2026“ aus „2026-11“. */
+export function formatMonth(month: string): string {
+  return `${de.date.monthsLong[Number(month.slice(5, 7)) - 1]} ${month.slice(0, 4)}`;
+}

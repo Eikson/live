@@ -11,7 +11,8 @@ export type Route =
   | 'gewohnheit-bearbeiten'
   | 'abend'
   | 'gegen-habit-neu'
-  | 'ausweichliste';
+  | 'ausweichliste'
+  | 'info';
 
 const ROUTES: readonly Route[] = [
   'heute',
@@ -26,6 +27,7 @@ const ROUTES: readonly Route[] = [
   'abend',
   'gegen-habit-neu',
   'ausweichliste',
+  'info',
 ];
 
 export type RouteParams = Record<string, string>;

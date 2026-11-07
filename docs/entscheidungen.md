@@ -125,3 +125,49 @@ Gründe sind „Krank“, „Urlaub“ und „Anderes“, dazu eine freiwillige 
 ## E-030 Formulierung für frühere Tage
 
 Beim Nachtragen heißt „nicht gemacht“ für Aufbau-Habits „An dem Tag nicht“. Das beschreibt den Tag, ohne zu werten.
+
+## E-031 Niveau erst ab 14 vollständigen Tagen
+
+Die Zahl „Ø … letzte 28 Tage“ erscheint erst, wenn es in den letzten 28 Tagen mindestens 14 vollständig eingetragene Tage gibt (`warning.avgMinDays`). Vorher steht dort ruhig, wie viele es bisher sind. Ein Tag ist vollständig, wenn jedes an dem Tag geplante Habit eine Angabe hat und er kein Ausnahmetag ist. Die Zahl steht nur im Verlauf, nie auf „Heute“.
+
+## E-032 Diagramm: Band, Linie, Punkte
+
+Das Niveau-Diagramm zeigt die letzten 84 Tage, bei kürzerer Geschichte ab der ersten Aktivierung, mindestens aber 14 Tage. Punkte sind vollständig eingetragene Tage. Das Band reicht vom Ø-Boden bis zur Ø-Decke der jeweils letzten 28 Tage, die Linie ist der Ø der letzten 28 Tage. Unter der Achse stehen Buchstaben für Ausnahmetage (A), Wiedereinstiege (W), Planänderungen (P) und Archivierungen (X). Die Breite des Diagramms richtet sich beim Anzeigen nach dem Bildschirm, damit es auf dem Handy nicht flach wird; Diagramme kommen ohne Bibliothek aus (SVG).
+
+## E-033 Keine Tageswerte als Zahl
+
+Nach US-10 gibt es keine Zahl für einen einzelnen Tag, weder in Tabellen noch in Tooltips. Die Tabellenalternative zeigt deshalb Wochen (neueste zuerst) mit Anzahl eingetragener Tage und dem Ø der letzten 28 Tage am Wochenende, dazu Boden und Decke. Die Diagramme haben Titel und Beschreibung für Screenreader.
+
+## E-034 Vergleich mit früher
+
+Der Vergleich nutzt das 28-Tage-Fenster vor 182 Tagen, wenn es dort mindestens 14 vollständige Tage gibt; sonst die ersten Wochen nach der ersten Aktivierung; sonst „Noch zu wenig Daten für einen Vergleich.“ Gerade pausierte Habits fallen aus beiden Seiten des Vergleichs heraus, damit eine Pause nicht als Veränderung erscheint. Der Hauptwert rechnet pausierte Habits bis zum Tag der Pause mit, weil er die tatsächlichen Tage beschreibt. Archivierte Habits fallen überall rückwirkend heraus und bleiben nur als Markierung (X) sichtbar.
+
+## E-035 Befinden getrennt vom Niveau
+
+Stimmung und Energie bekommen ein eigenes Diagramm mit Punkten (Mittel beider Angaben) und Ø-Linie, aber ohne Boden und Decke. Befinden fließt nicht in den Score ein; es senkt nur die Toleranz der Hinweislogik (E-038).
+
+## E-036 Kalender
+
+Der Kalender zeigt pro Habit einen Monat. Zu sehen sind aktive und pausierte Habits, archivierte nicht. „Heute“ ohne Angabe ist „noch offen“ und wird nicht als fehlender Eintrag gezählt, die Zukunft ist „nicht geplant“. Gegen-Habits nutzen dieselben Symbole ●◐○ mit eigenen Bezeichnungen (eingehalten, teilweise, nicht eingehalten). Jede Zelle hat einen Text für Screenreader. Geblättert werden kann vom Monat der ersten Aktivierung bis zum aktuellen Monat. Die Ereignisliste nennt „Handlung verkleinert“ nur, wenn beim Wiedereinstieg „Kleiner machen“ gewählt und am selben Tag bearbeitet wurde.
+
+## E-037 „Ratsche“ nicht umgesetzt
+
+Die Vorgabe nennt eine „Ratsche“, definiert sie aber nicht. Statt etwas zu erfinden, ist sie nicht umgesetzt. Boden und Decke folgen allein den Formeln aus der Konfiguration.
+
+## E-038 Hinweiskarte
+
+Die Karte erscheint auf „Heute“, wenn die Hinweislogik ein Muster sieht, höchstens einmal je 7 Tage. Muster heißt: In den letzten 7 Kalendertagen liegen mindestens 5 vollständige Tage unter der Tagesgrenze (Boden mal Toleranz 0,6, bei Befinden ≤ 2 Toleranz 0,4), oder der Ø der letzten 28 Tage liegt bei mindestens 14 vollständigen Tagen unter dem Ø-Boden. Einzelne Tage lösen nie etwas aus. Am Tag, an dem sie zuerst erscheint, bleibt sie sichtbar. Jede Wahl blendet sie für 7 Tage aus.
+
+- Die Auswahl, worauf sich die Wahl bezieht, listet aktive Aufbau-Habits, integrierte zuerst; bei nur einem entfällt die Auswahl.
+- „So lassen“ ändert nichts außer der Ruhezeit. „Kleiner machen“ und „Auslöser ändern“ öffnen das Bearbeiten-Formular mit Fokus auf dem Feld. „Pausieren“ pausiert das gewählte Habit. „Ausnahmetage nachtragen“ führt zum Abend-Check-in, wo Ausnahmetage gesetzt werden.
+- Vorrang auf „Heute“: Wiedereinstieg vor Hinweiskarte vor Abendkarte. Es steht nie mehr als eine Aufforderung oben.
+
+Gespeichert werden nur `lastWarningCardAt` und `warningSnoozedUntil` in den Einstellungen, nie das Muster selbst.
+
+## E-039 Testdaten nur in der Entwicklung
+
+`seed.html` mit `src/dev/seed.ts` erzeugt deterministische Testdaten über rund sieben Monate (Wechsel im Rhythmus, Archivierung, Pause, Lücke mit Wiedereinstieg, Urlaub, Krankheit). Die Seite ist nicht Teil des Builds und nur über `npm run dev` erreichbar. Dieselben Daten nutzen die Integrationstests des Verlaufs.
+
+## E-040 Wochenrückblick folgt in Schritt 7
+
+Werte für den Wochenrückblick kommen mit Schritt 7 und sind hier noch nicht gebaut.

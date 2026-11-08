@@ -2,7 +2,7 @@
 
 Live ist eine private, installierbare PWA ohne Backend. Alle Daten liegen in IndexedDB auf dem Gerät. Es gibt keine Netzwerkabhängigkeit, keine externen Fonts oder CDNs, keine Analytics und keine Telemetrie.
 
-Dieses Dokument wächst mit den Schritten. Stand: Schritt 9 (PWA-Härtung).
+Dieses Dokument wächst mit den Schritten. Stand: Schritt 10 (Abnahme und Vorbereitung des Deployments).
 
 ## Schichten
 
@@ -182,7 +182,12 @@ Erst nach dem Speichern oder Teilen setzt `markBackupDone` den Zeitpunkt des let
 - `tests/integration/`: Repository und Use Cases gegen fake-indexeddb (Transaktionen, eindeutiger Index, Migrationen, erste Schleife, Planung, Bearbeiten/Pausieren/Löschen/Wiedereinstieg, Tagesabschluss, Ausnahmetage, Gegen-Habits, Verlauf und Hinweiskarte mit den Testdaten, Wochenrückblick, Export/Import mit Sicherheitskopie und Zusammenführen zwischen zwei Geräten, Alle Daten löschen)
 - `tests/unit/contrast.test.ts`: Kontraste der Farb-Tokens aus `styles.css` nach WCAG AA, hell und dunkel (E-056)
 - `tests/e2e/`: Playwright in Chromium mit Pixel-8-Viewport und Desktop; gemeinsame Abläufe in `tests/e2e/helpers.ts`
+- `tests/e2e/base-path.spec.ts`: nur mit `LIVE_BASE` (z. B. `/live/`): Service-Worker-Scope, Manifest und Offline-Start unter dem Unterpfad wie auf GitHub Pages. `E2E_PORT` wählt einen anderen Port, falls 4173 belegt ist.
 - `tests/e2e/pwa.spec.ts`: offline nach dem ersten Laden, Update bei geöffnetem Formular, fehlender oder verweigerter Speicher, voller Speicher, Installationsanleitung und Manifest, Kurzprüfung der Barrierefreiheit aller Seiten bei 320 px (hell und dunkel) und Bedienung mit der Tastatur
+
+## Veröffentlichung
+
+`.github/workflows/pages.yml` (GitHub Actions) installiert mit `npm ci`, führt `npm test` aus, baut mit `LIVE_BASE=/<repository>/` und veröffentlicht `dist/` auf GitHub Pages. Bei einem Repository `<name>.github.io` ist der Basis-Pfad `/`. Die E2E-Tests laufen dort nicht, sie bleiben lokal (Browser-Download in jedem Lauf wäre langsam). Eingerichtet ist noch nichts, siehe README.
 
 ## Grenzen der PWA
 

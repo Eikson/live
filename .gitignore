@@ -9,3 +9,6 @@ playwright-report/
 # Spezifikation und Recherche bleiben lokal (nicht für ein öffentliches Repository gedacht)
 Input/
 Live-Implementierungsprompt.md
+
+# Lokale Werkzeuge
+.claude/

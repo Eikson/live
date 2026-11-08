@@ -264,3 +264,10 @@ Vor „Ersetzen“ speichert die App automatisch eine Sicherheitskopie des aktue
 - **Kontraste:** Ein Unit-Test liest die Farb-Tokens aus `styles.css` (Import mit `?raw`, in `vitest.config.ts` dafür `css.include`) und rechnet die Kontraste nach WCAG. Text braucht 4,5:1, der Fokusrahmen 3:1. Halbtransparente Flächen werden auf den Untergrund gerechnet.
 - **Seiten:** Ein E2E-Test besucht alle Seiten bei 320 px Breite, hell und dunkel. Er prüft Sprache, genau eine sichtbare h1, einen Namen für jedes Bedienelement, eindeutige IDs, Textalternativen für SVG und Bilder und keinen horizontalen Überlauf. Ein zweiter Test bedient „Gemacht“ und die Navigation nur mit der Tastatur und prüft den sichtbaren Fokus.
 - **Warum so:** Pakete wie axe-core stehen nicht auf der erlaubten Liste. Die eigene Prüfung deckt nicht alles ab, was ein vollständiges Audit findet. Ein Test mit einem Screenreader bleibt Handarbeit.
+
+## E-057 Veröffentlichung über GitHub Actions
+
+- **Weg:** GitHub Pages mit dem offiziellen Ablauf über Actions (`upload-pages-artifact`, `deploy-pages`) statt eines `gh-pages`-Zweigs. So landet der Build nicht im Verlauf, und es braucht kein zusätzliches npm-Paket.
+- **Basis-Pfad:** Er kommt aus dem Namen des Repositorys, nicht fest aus dem Code. Ein Umbenennen braucht damit keine Code-Änderung. Daten hängen aber an der Adresse: Nach einem Umbenennen beginnt die App unter der neuen Adresse leer, vorher also exportieren.
+- **Prüfung vor dem Veröffentlichen:** Unit- und Integrationstests laufen im Workflow. Die E2E-Tests laufen lokal vor dem Push, auch die Variante mit Unterpfad (`LIVE_BASE=/live/`).
+- **Lokale Werkzeuge:** `.claude/` steht in `.gitignore`, damit es nicht im öffentlichen Repository landet.

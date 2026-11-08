@@ -168,7 +168,9 @@ describe('Voller Gerätespeicher', () => {
 
   it('meldet einen vollen Speicher, reicht den Fehler weiter und lässt den Bestand unverändert', async () => {
     let reported = 0;
-    const r = await repo(undefined, { onQuotaExceeded: () => reported++ });
+    // Feste Uhr: Ohne gespeicherte Einstellungen setzt loadSnapshot den aktuellen Zeitpunkt ein.
+    const now = () => new Date('2026-01-01T12:00:00Z');
+    const r = await repo(undefined, { onQuotaExceeded: () => reported++, now });
     await r.commit({ goals: [goal('g1')] });
     const before = await r.loadSnapshot();
 

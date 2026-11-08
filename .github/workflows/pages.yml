@@ -1,0 +1,52 @@
+# Baut Live und veröffentlicht es auf GitHub Pages.
+# Wirkt erst, wenn das Repository auf GitHub liegt und unter Settings → Pages
+# als Quelle „GitHub Actions“ gewählt ist. Läuft bei jedem Push auf main oder von Hand.
+name: GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      # Unterpfad = Name des Repositorys, z. B. /live/. Bei <name>.github.io liegt die App direkt unter /.
+      - name: Build
+        run: |
+          if [ "${{ github.event.repository.name }}" = "${{ github.repository_owner }}.github.io" ]; then
+            export LIVE_BASE=/
+          else
+            export LIVE_BASE="/${{ github.event.repository.name }}/"
+          fi
+          npm run build
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

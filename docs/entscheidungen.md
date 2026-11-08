@@ -241,3 +241,26 @@ Vor „Ersetzen“ speichert die App automatisch eine Sicherheitskopie des aktue
 
 - **Import:** Er ist über Einstellungen → „Exportieren und importieren“ erreichbar, nicht aus dem ersten Start. Wer auf einem neuen Gerät anfängt, durchläuft den kurzen ersten Start und ersetzt danach den Bestand. Ein eigener Einstieg im ersten Start wäre zusätzlicher Umfang, der nicht verlangt war.
 - **Alle Daten löschen:** Das verlangt die Eingabe „löschen“. Dann wird die Datenbank vollständig entfernt, Löschmarkierungen eingeschlossen, ebenso die Merkwerte im localStorage. Danach beginnt die App mit dem ersten Start.
+
+## E-053 Voller Speicher zentral im Repository
+
+- **Erkennung:** `isQuotaError` erkennt `QuotaExceededError` (und den alten Firefox-Namen). Alle schreibenden Methoden des Repositorys laufen über einen gemeinsamen Wrapper, der den Fehler meldet und weiterwirft.
+- **Anzeige:** Die Formulare behalten ihre bisherige Meldung „Deine Angabe wurde nicht gespeichert“. Zusätzlich erklärt ein Hinweis oben den Grund und führt zu „Exportieren und importieren“. So musste keine der vielen Fehlerstellen in der UI angepasst werden.
+- **Daten:** Die Transaktion wird abgebrochen. Es bleibt kein halber Eintrag und kein Ereignis ohne Zustand.
+
+## E-054 Wann nach Updates gefragt wird
+
+- Beim Start fragt der Browser ohnehin. Danach fragt die App höchstens einmal pro Stunde, beim Zurückkehren in die App oder per Zeitgeber, und nur, wenn `navigator.onLine` gilt.
+- Häufiger zu fragen brächte für eine private App nichts und kostet mobil Daten. Aktiviert wird weiterhin erst nach Bestätigung.
+
+## E-055 Installationsanleitung
+
+- **Ort:** Eigene Seite `#/installieren`, erreichbar aus den Einstellungen. Kein Hinweis auf „Heute“, denn der wäre zusätzlicher Umfang ohne Auftrag.
+- **Knopf:** „Jetzt installieren“ erscheint nur, wenn Chrome oder Edge `beforeinstallprompt` ausgelöst haben. Sonst gibt es nur die Anleitung in Worten. Läuft Live bereits installiert, steht das oben.
+- **Inhalt:** Schritte für Android mit Chrome und für den Computer mit Chrome oder Edge, dazu die Grenzen: https nötig, Daten gehören zur Adresse, vor dem Deinstallieren exportieren.
+
+## E-056 Prüfung der Barrierefreiheit ohne Zusatzpakete
+
+- **Kontraste:** Ein Unit-Test liest die Farb-Tokens aus `styles.css` (Import mit `?raw`, in `vitest.config.ts` dafür `css.include`) und rechnet die Kontraste nach WCAG. Text braucht 4,5:1, der Fokusrahmen 3:1. Halbtransparente Flächen werden auf den Untergrund gerechnet.
+- **Seiten:** Ein E2E-Test besucht alle Seiten bei 320 px Breite, hell und dunkel. Er prüft Sprache, genau eine sichtbare h1, einen Namen für jedes Bedienelement, eindeutige IDs, Textalternativen für SVG und Bilder und keinen horizontalen Überlauf. Ein zweiter Test bedient „Gemacht“ und die Navigation nur mit der Tastatur und prüft den sichtbaren Fokus.
+- **Warum so:** Pakete wie axe-core stehen nicht auf der erlaubten Liste. Die eigene Prüfung deckt nicht alles ab, was ein vollständiges Audit findet. Ein Test mit einem Screenreader bleibt Handarbeit.

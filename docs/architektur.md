@@ -2,7 +2,7 @@
 
 Live ist eine private, installierbare PWA ohne Backend. Alle Daten liegen in IndexedDB auf dem Gerät. Es gibt keine Netzwerkabhängigkeit, keine externen Fonts oder CDNs, keine Analytics und keine Telemetrie.
 
-Dieses Dokument wächst mit den Schritten. Stand: Schritt 8 (Datenhoheit).
+Dieses Dokument wächst mit den Schritten. Stand: Schritt 9 (PWA-Härtung).
 
 ## Schichten
 
@@ -67,6 +67,7 @@ Der Router arbeitet über den Hash (`#/heute`, `#/plan`, …, siehe E-005). Assi
 - `#/einstellungen`: Erscheinungsbild, Wochenrückblick (an/aus, Wochentag, Vorschläge), Abendkarte, Daten (letzter Export, Backup-Hinweis an/aus) und „Alle Daten löschen“.
 - `#/daten`: Export (wahlweise verschlüsselt) und Import mit Vorschau, „Ersetzen“ oder „Zusammenführen“. Use Cases in `src/app/backup.ts`, siehe Abschnitt „Export und Import“.
 - `#/gespeichert`: „Was wird gespeichert?“ (welche Daten, wo, was nicht).
+- `#/installieren`: Anleitung „App installieren“ (Android, Computer, Hinweise). Einen Knopf „Jetzt installieren“ gibt es nur, wenn der Browser `beforeinstallprompt` angeboten hat (`src/platform/install.ts`, siehe E-055).
 
 ## Transaktionen
 
@@ -163,15 +164,34 @@ Erst nach dem Speichern oder Teilen setzt `markBackupDone` den Zeitpunkt des let
 
 `vite-plugin-pwa` erzeugt Manifest und Service Worker (Precache aller Dateien, damit die App offline startet). Updates werden nicht automatisch aktiviert: Die App zeigt einen Hinweis, und erst auf Tippen wird die neue Version geladen, damit keine Eingabe verloren geht.
 
+- `src/platform/sw-update.ts` registriert den Service Worker beim Start. Danach fragt die App höchstens einmal pro Stunde nach einer neuen Version: stündlich und beim Zurückkehren in die App, aber nur mit Netz (E-054). Ein Fehler beim Fragen wird verschluckt, die aktuelle Version bleibt.
+- Der Hinweis „Neue Version verfügbar – neu laden“ erscheint einmal. „Später“ blendet ihn aus; die neue Version wird dann beim nächsten Öffnen aller Fenster aktiv.
+
+## Hinweise und Fehlerzustände
+
+`src/main.ts` zeigt Hinweise über `showBanner` im Bereich `.banners` an. Jeder Hinweis hat einen Schlüssel (`data-banner`); ein neuer Hinweis mit demselben Schlüssel ersetzt den alten. Dringende Hinweise haben `role="alert"`, die übrigen `role="status"`.
+
+- **Kein lokaler Speicher** (privater Modus, blockierte Website-Daten, `indexedDB.open` wirft oder schlägt fehl): Statt der App erscheint die Erklärung „Live kann hier keine Daten speichern“ mit „Erneut versuchen“.
+- **Voller Speicher** (`QuotaExceededError`): Das Repository meldet den Fehler über `onQuotaExceeded` und wirft ihn weiter. Die Transaktion ist abgebrochen, es bleibt kein halber Eintrag. Das Formular zeigt wie bisher „Deine Angabe wurde nicht gespeichert“, der Hinweis `quota` erklärt den Grund und führt zum Export (E-053).
+- **Verbindung getrennt** (Browserdaten während der Nutzung gelöscht, idb-Ereignis `terminated`): Hinweis `connection` mit der Bitte, neu zu laden.
+- **Neuere Version in einem anderen Tab**: Hinweis `connection` mit „Neu laden“ (siehe Migrationen).
+
 ## Tests
 
 - `tests/unit/`: Domain-Logik (Datum inklusive Sommerzeit, Planung, Status, Check-in, Erfüllung, Integration, Score, Korridor, Vergleich, Hinweislogik, Abend, Ausweichliste, Wochenrückblick, Exportformat, Importprüfung, Verschlüsselung, Zusammenführen und Backup-Hinweis)
 - `tests/integration/`: Repository und Use Cases gegen fake-indexeddb (Transaktionen, eindeutiger Index, Migrationen, erste Schleife, Planung, Bearbeiten/Pausieren/Löschen/Wiedereinstieg, Tagesabschluss, Ausnahmetage, Gegen-Habits, Verlauf und Hinweiskarte mit den Testdaten, Wochenrückblick, Export/Import mit Sicherheitskopie und Zusammenführen zwischen zwei Geräten, Alle Daten löschen)
+- `tests/unit/contrast.test.ts`: Kontraste der Farb-Tokens aus `styles.css` nach WCAG AA, hell und dunkel (E-056)
 - `tests/e2e/`: Playwright in Chromium mit Pixel-8-Viewport und Desktop; gemeinsame Abläufe in `tests/e2e/helpers.ts`
+- `tests/e2e/pwa.spec.ts`: offline nach dem ersten Laden, Update bei geöffnetem Formular, fehlender oder verweigerter Speicher, voller Speicher, Installationsanleitung und Manifest, Kurzprüfung der Barrierefreiheit aller Seiten bei 320 px (hell und dunkel) und Bedienung mit der Tastatur
 
 ## Grenzen der PWA
 
-Wird im Lauf der Schritte ergänzt (Speicherbereinigung durch den Browser, Benachrichtigungen, Installation unter Android).
+- **Speicherbereinigung:** Browser dürfen Website-Daten bei Speichermangel oder nach längerer Nichtnutzung löschen. Eine installierte App ist davor meist besser geschützt, sicher ist das nicht. Nur ein Export liegt außerhalb des Browsers.
+- **Installation:** Sie braucht https oder localhost. Über eine WLAN-Adresse mit http (Testbuild) bietet Chrome keine Installation an und der Service Worker läuft nicht; dort gibt es auch keinen Offline-Betrieb.
+- **Adresse:** Die Daten gehören zur Adresse, unter der Live geöffnet wurde. Die installierte App und der Browser-Tab mit derselben Adresse teilen sie; eine andere Adresse beginnt leer.
+- **Deinstallieren** kann die Daten entfernen. Vorher exportieren.
+- **Erster Aufruf ohne Internet:** Ohne einen früheren Besuch gibt es keinen Cache. Dann zeigt der Browser seine eigene Fehlerseite; die App kann das nicht abfangen.
+- **Benachrichtigungen** gibt es nicht (nicht verlangt).
 
 - Die Daten liegen nur in diesem Browser auf diesem Gerät. Wer sie absichern will, muss selbst exportieren und die Datei an einen anderen Ort legen. Der Backup-Hinweis erinnert daran, mehr nicht.
 - Teilen (`navigator.share` mit Datei) gibt es nicht überall. Fehlt es, wird die Datei heruntergeladen. Nach einer langsamen Verschlüsselung kann der Browser das Teilen ablehnen, weil der Tipp zu lange zurückliegt. Dann wird ebenfalls heruntergeladen.

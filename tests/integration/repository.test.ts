@@ -1,6 +1,6 @@
 import { openDB } from 'idb';
 import { afterEach, describe, expect, it } from 'vitest';
-import { IdbRepository } from '../../src/data/idb-repository';
+import { IdbRepository, isQuotaError } from '../../src/data/idb-repository';
 import { migrations, type Migration } from '../../src/data/migrations';
 import type { Goal } from '../../src/domain/types';
 import { checkIn, event, makeHabit, NOW } from '../helpers';
@@ -153,5 +153,43 @@ describe('Migrationen', () => {
 
   it('verweigert das Öffnen, wenn eine Migration fehlt', async () => {
     await expect(IdbRepository.open({ name: `mig-${++dbSeq}`, version: 3 })).rejects.toThrow('Migration 2 fehlt.');
+  });
+});
+
+describe('Voller Gerätespeicher', () => {
+  const quota = () => new DOMException('Der Speicher ist voll.', 'QuotaExceededError');
+
+  it('erkennt QuotaExceededError, auch unter dem Firefox-Namen', () => {
+    expect(isQuotaError(quota())).toBe(true);
+    expect(isQuotaError({ name: 'NS_ERROR_DOM_QUOTA_REACHED' })).toBe(true);
+    expect(isQuotaError(new Error('anders'))).toBe(false);
+    expect(isQuotaError(null)).toBe(false);
+  });
+
+  it('meldet einen vollen Speicher, reicht den Fehler weiter und lässt den Bestand unverändert', async () => {
+    let reported = 0;
+    const r = await repo(undefined, { onQuotaExceeded: () => reported++ });
+    await r.commit({ goals: [goal('g1')] });
+    const before = await r.loadSnapshot();
+
+    const proto = IDBObjectStore.prototype;
+    const original = proto.put;
+    proto.put = function () {
+      throw quota();
+    };
+    try {
+      await expect(r.commit({ goals: [goal('g2')] })).rejects.toMatchObject({ name: 'QuotaExceededError' });
+      await expect(r.upsertCheckIn('h1', '2026-01-01', () => checkIn('h1', '2026-01-01', 'DONE'))).rejects.toMatchObject({
+        name: 'QuotaExceededError',
+      });
+    } finally {
+      proto.put = original;
+    }
+    expect(reported).toBe(2);
+    expect(await r.loadSnapshot()).toEqual(before);
+
+    // Andere Fehler zählen nicht als voller Speicher.
+    await expect(r.updateAll(() => { throw new Error('ungültig'); })).rejects.toThrow('ungültig');
+    expect(reported).toBe(2);
   });
 });

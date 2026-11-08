@@ -157,6 +157,7 @@ export const settingsScreen: Screen = async ({ ctx }) => {
     data,
     status,
     saved,
+    h('p', null, h('a', { class: 'button link', href: routeHref('installieren') }, de.settings.install)),
     h('p', null, h('a', { class: 'button link', href: routeHref('info') }, de.settings.info)),
     deleteAllSection(ctx),
   );

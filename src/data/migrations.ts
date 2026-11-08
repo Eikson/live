@@ -38,6 +38,8 @@ export interface OpenOptions {
   migrations?: Record<number, Migration>;
   /** Wird aufgerufen, wenn ein anderer Tab eine neuere Version öffnen will. */
   onVersionChange?: () => void;
+  /** Wird aufgerufen, wenn der Browser die Verbindung unerwartet schließt (z. B. Browserdaten gelöscht). */
+  onTerminated?: () => void;
 }
 
 export async function openDatabase(options: OpenOptions = {}): Promise<IDBPDatabase<LiveDB>> {
@@ -79,6 +81,9 @@ export async function openDatabase(options: OpenOptions = {}): Promise<IDBPDatab
         // Ein anderer Tab braucht eine neuere Version: Verbindung freigeben.
         db.close();
         options.onVersionChange?.();
+      },
+      terminated() {
+        options.onTerminated?.();
       },
     });
   } catch (error) {

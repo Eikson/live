@@ -15,7 +15,8 @@ export type Route =
   | 'info'
   | 'wochenrueckblick'
   | 'daten'
-  | 'gespeichert';
+  | 'gespeichert'
+  | 'installieren';
 
 const ROUTES: readonly Route[] = [
   'heute',
@@ -34,6 +35,7 @@ const ROUTES: readonly Route[] = [
   'wochenrueckblick',
   'daten',
   'gespeichert',
+  'installieren',
 ];
 
 export type RouteParams = Record<string, string>;

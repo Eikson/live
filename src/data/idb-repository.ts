@@ -22,16 +22,44 @@ function storesOf(changes: ChangeSet): StoreName[] {
   return [...stores];
 }
 
+/** Erkennt einen vollen Gerätespeicher, auch wenn er erst als Abbruch der Transaktion ankommt. */
+export function isQuotaError(error: unknown): boolean {
+  const name = (error as { name?: unknown } | null)?.name;
+  return name === 'QuotaExceededError' || name === 'NS_ERROR_DOM_QUOTA_REACHED';
+}
+
+export interface RepositoryOptions extends OpenOptions {
+  now?: () => Date;
+  /** Wird aufgerufen, wenn ein Schreibvorgang am vollen Gerätespeicher scheitert. */
+  onQuotaExceeded?: () => void;
+}
+
 export class IdbRepository implements LiveRepository {
   private constructor(
     private db: IDBPDatabase<LiveDB>,
     private readonly name: string,
     private readonly now: () => Date,
+    private readonly onQuotaExceeded: () => void,
   ) {}
 
-  static async open(options: OpenOptions & { now?: () => Date } = {}): Promise<IdbRepository> {
+  static async open(options: RepositoryOptions = {}): Promise<IdbRepository> {
     const db = await openDatabase(options);
-    return new IdbRepository(db, options.name ?? DB_NAME, options.now ?? (() => new Date()));
+    return new IdbRepository(
+      db,
+      options.name ?? DB_NAME,
+      options.now ?? (() => new Date()),
+      options.onQuotaExceeded ?? (() => undefined),
+    );
+  }
+
+  /** Schreibt und meldet einen vollen Speicher zusätzlich an die App. Der Fehler wird weitergereicht. */
+  private async write<T>(run: () => Promise<T>): Promise<T> {
+    try {
+      return await run();
+    } catch (error) {
+      if (isQuotaError(error)) this.onQuotaExceeded();
+      throw error;
+    }
   }
 
   private nowIso(): string {
@@ -94,7 +122,11 @@ export class IdbRepository implements LiveRepository {
     return c && !isTombstone(c) ? c : undefined;
   }
 
-  async commit(changes: ChangeSet): Promise<void> {
+  commit(changes: ChangeSet): Promise<void> {
+    return this.write(() => this.commitNow(changes));
+  }
+
+  private async commitNow(changes: ChangeSet): Promise<void> {
     const stores = storesOf(changes);
     if (stores.length === 0) return;
     const tx = this.db.transaction(stores, 'readwrite');
@@ -118,11 +150,19 @@ export class IdbRepository implements LiveRepository {
     await runAtomically(tx, ops);
   }
 
-  async upsertCheckIn(
+  upsertCheckIn(
     habitId: string,
     localDate: LocalDate,
     update: (existing: CheckIn | undefined) => Stored<CheckIn> | null,
-  ) {
+  ): Promise<Stored<CheckIn> | null> {
+    return this.write(() => this.upsertCheckInNow(habitId, localDate, update));
+  }
+
+  private async upsertCheckInNow(
+    habitId: string,
+    localDate: LocalDate,
+    update: (existing: CheckIn | undefined) => Stored<CheckIn> | null,
+  ): Promise<Stored<CheckIn> | null> {
     const tx = this.db.transaction('checkIns', 'readwrite');
     const store = tx.objectStore('checkIns');
     let result: Stored<CheckIn> | null = null;
@@ -138,12 +178,18 @@ export class IdbRepository implements LiveRepository {
     return result;
   }
 
-  async replaceAll(snapshot: Snapshot): Promise<void> {
-    const tx = this.db.transaction(DATA_STORES, 'readwrite');
-    await runAtomically(tx, writeAll(tx, snapshot));
+  replaceAll(snapshot: Snapshot): Promise<void> {
+    return this.write(async () => {
+      const tx = this.db.transaction(DATA_STORES, 'readwrite');
+      await runAtomically(tx, writeAll(tx, snapshot));
+    });
   }
 
-  async updateAll(update: (current: Snapshot) => Snapshot): Promise<Snapshot> {
+  updateAll(update: (current: Snapshot) => Snapshot): Promise<Snapshot> {
+    return this.write(() => this.updateAllNow(update));
+  }
+
+  private async updateAllNow(update: (current: Snapshot) => Snapshot): Promise<Snapshot> {
     const tx = this.db.transaction(DATA_STORES, 'readwrite');
     let result: Snapshot | undefined;
     // Lesen, Berechnen und Schreiben ohne fremde await-Punkte, damit die Transaktion offen bleibt.

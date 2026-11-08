@@ -41,6 +41,11 @@ export const de = {
       'Dein Browser erlaubt in diesem Fenster keinen lokalen Speicher. Das passiert zum Beispiel im privaten Modus oder wenn Website-Daten blockiert sind. Öffne Live in einem normalen Fenster, damit deine Angaben erhalten bleiben.',
     retry: 'Erneut versuchen',
     otherTab: 'Live wurde in einem anderen Tab aktualisiert. Lade diese Seite neu, um weiterzumachen.',
+    storageFull:
+      'Der Speicher auf diesem Gerät ist voll. Deine letzte Angabe wurde nicht gespeichert. Gib Speicherplatz frei, zum Beispiel durch das Löschen großer Dateien, und exportiere deine Daten, sobald es wieder geht.',
+    storageFullAction: 'Zum Export',
+    connectionLost:
+      'Die Verbindung zum Speicher wurde getrennt, zum Beispiel weil Browserdaten gelöscht wurden. Lade die Seite neu, bevor du weitermachst.',
   },
   update: {
     available: 'Neue Version verfügbar – neu laden',
@@ -577,6 +582,7 @@ export const de = {
     lastBackup: (date: string) => `Letzter Export: ${date}`,
     noBackup: 'Bisher gibt es keinen Export.',
     backupDue: 'Der letzte Export liegt mehr als 14 Tage zurück.',
+    install: 'App installieren',
     info: 'Über Live',
     deleteAll: 'Alle Daten löschen',
     deleteAllBody:
@@ -668,6 +674,33 @@ export const de = {
     },
     exportAdvice: 'Die einzige Sicherung ist eine Exportdatei. Exportiere regelmäßig und bewahre die Datei an einem anderen Ort auf.',
     toData: 'Zum Export',
+  },
+  install: {
+    heading: 'App installieren',
+    intro:
+      'Als installierte App startet Live vom Startbildschirm, ohne Adressleiste, und funktioniert auch ohne Internet. Deine Daten bleiben dieselben wie im Browser unter dieser Adresse.',
+    installed: 'Live läuft gerade als installierte App.',
+    button: 'Jetzt installieren',
+    androidHeading: 'Android mit Chrome',
+    android: [
+      'Öffne Live in Chrome.',
+      'Tippe oben rechts auf das Menü mit den drei Punkten.',
+      'Wähle „App installieren“ oder „Zum Startbildschirm hinzufügen“.',
+      'Bestätige mit „Installieren“. Live erscheint danach auf dem Startbildschirm.',
+    ],
+    desktopHeading: 'Computer mit Chrome oder Edge',
+    desktop: [
+      'Öffne Live im Browser.',
+      'Klicke rechts in der Adressleiste auf das Symbol zum Installieren. Alternativ findest du „Installieren“ im Menü des Browsers.',
+      'Bestätige mit „Installieren“.',
+    ],
+    notesHeading: 'Gut zu wissen',
+    notes: [
+      'Installieren geht nur über eine sichere Adresse (https) oder direkt auf dem Computer unter localhost. Über eine WLAN-Adresse mit http bietet der Browser es nicht an.',
+      'Die installierte App und der Browser teilen sich die Daten nur, wenn beide dieselbe Adresse nutzen.',
+      'Deinstallierst du die App, können je nach Browser auch die Daten entfernt werden. Exportiere vorher.',
+    ],
+    back: 'Zurück zu den Einstellungen',
   },
   backupCard: {
     label: 'Sicherung',

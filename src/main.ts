@@ -4,6 +4,7 @@ import { IdbRepository } from './data/idb-repository';
 import { de } from './i18n/de';
 import { systemClock, today } from './platform/clock';
 import { newId } from './platform/ids';
+import { captureInstallPrompt } from './platform/install';
 import { isIndexedDbAvailable, requestPersistentStorage } from './platform/storage';
 import { setupServiceWorker } from './platform/sw-update';
 import { applyCachedTheme, applyTheme } from './platform/theme';
@@ -23,6 +24,7 @@ import { habitEditScreen } from './ui/screens/habit-edit';
 import { habitNewScreen } from './ui/screens/habit-new';
 import { historyScreen } from './ui/screens/history';
 import { infoScreen } from './ui/screens/info';
+import { installScreen } from './ui/screens/install';
 import { onboardingScreen } from './ui/screens/onboarding';
 import { planScreen } from './ui/screens/plan';
 import { settingsScreen } from './ui/screens/settings';
@@ -46,22 +48,40 @@ const SCREENS: Record<Route, Screen> = {
   wochenrueckblick: reviewScreen,
   daten: dataScreen,
   gespeichert: storedScreen,
+  installieren: installScreen,
 };
 
 /** Seiten, die bei einem Tageswechsel neu aufgebaut werden (keine Formulare mit offenen Eingaben). */
 const DAY_SENSITIVE: ReadonlySet<Route> = new Set(['heute', 'verlauf', 'plan']);
 
-function showBanner(shell: Shell, text: string, action?: { label: string; run: () => void }, dismissible = false): void {
-  const banner = h('div', { class: 'banner', role: 'status' }, text ? h('p', null, text) : null);
+interface BannerOptions {
+  /** Ein Banner je Anlass; ein neues ersetzt nur das alte desselben Anlasses. */
+  key: string;
+  text?: string;
+  action?: { label: string; run: () => void };
+  dismissible?: boolean;
+  /** Fehler werden sofort vorgelesen, Hinweise höflich. */
+  urgent?: boolean;
+}
+
+function showBanner(shell: Shell, { key, text, action, dismissible = false, urgent = false }: BannerOptions): void {
+  const banner = h(
+    'div',
+    { class: 'banner', role: urgent ? 'alert' : 'status', 'data-banner': key },
+    text ? h('p', null, text) : null,
+  );
   if (action) banner.append(h('button', { type: 'button', class: 'button primary', onclick: action.run }, action.label));
   if (dismissible) {
     banner.append(h('button', { type: 'button', class: 'button quiet', onclick: () => banner.remove() }, de.update.later));
   }
-  shell.banners.replaceChildren(banner);
+  const existing = shell.banners.querySelector(`[data-banner="${key}"]`);
+  if (existing) existing.replaceWith(banner);
+  else shell.banners.append(banner);
 }
 
 async function start(): Promise<void> {
   applyCachedTheme();
+  captureInstallPrompt();
   const mount = document.getElementById('app')!;
 
   if (!isIndexedDbAvailable()) {
@@ -72,9 +92,21 @@ async function start(): Promise<void> {
   const shell = createShell();
   let repo: IdbRepository;
   try {
+    const reload = { label: de.common.reload, run: () => location.reload() };
     repo = await IdbRepository.open({
       // Ein anderer Tab mit neuerer Version: Verbindung ist geschlossen, Hinweis zum Neuladen.
-      onVersionChange: () => showBanner(shell, de.errors.otherTab, { label: de.common.reload, run: () => location.reload() }),
+      onVersionChange: () => showBanner(shell, { key: 'connection', text: de.errors.otherTab, action: reload }),
+      // Browserdaten gelöscht, während Live offen war.
+      onTerminated: () => showBanner(shell, { key: 'connection', text: de.errors.connectionLost, action: reload, urgent: true }),
+      // Voller Gerätespeicher: das Formular meldet den Fehler selbst, das Banner erklärt den Grund.
+      onQuotaExceeded: () =>
+        showBanner(shell, {
+          key: 'quota',
+          text: de.errors.storageFull,
+          action: { label: de.errors.storageFullAction, run: () => navigate('daten') },
+          dismissible: true,
+          urgent: true,
+        }),
     });
   } catch {
     mount.replaceChildren(renderStorageError());
@@ -89,7 +121,7 @@ async function start(): Promise<void> {
   mount.replaceChildren(shell.root);
   void requestPersistentStorage();
   setupServiceWorker((reload) =>
-    showBanner(shell, '', { label: de.update.available, run: () => void reload() }, true),
+    showBanner(shell, { key: 'update', action: { label: de.update.available, run: () => void reload() }, dismissible: true }),
   );
 
   let renderToken = 0;

@@ -26,6 +26,7 @@ const TAB_OF: Partial<Record<Route, Route>> = {
   daten: 'einstellungen',
   gespeichert: 'einstellungen',
   info: 'einstellungen',
+  installieren: 'einstellungen',
 };
 
 export function createShell(): Shell {

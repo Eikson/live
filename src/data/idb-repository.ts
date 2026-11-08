@@ -1,4 +1,4 @@
-import { deleteDB, type IDBPDatabase } from 'idb';
+import { deleteDB, type IDBPDatabase, type IDBPTransaction } from 'idb';
 import type { LocalDate } from '../domain/local-date';
 import { withPreferenceDefaults } from '../domain/preferences';
 import { isTombstone, type CheckIn, type Stored } from '../domain/types';
@@ -44,6 +44,12 @@ export class IdbRepository implements LiveRepository {
 
   async loadSnapshot(): Promise<Snapshot> {
     const tx = this.db.transaction(ALL_STORES, 'readonly');
+    const snapshot = await this.readAll(tx);
+    await tx.done;
+    return snapshot;
+  }
+
+  private async readAll(tx: IDBPTransaction<LiveDB, StoreName[], 'readonly' | 'readwrite'>): Promise<Snapshot> {
     const [preferences, goals, habits, habitEvents, checkIns, dayRecords, avoidanceItems, weeklyReviews] =
       await Promise.all([
         tx.objectStore('preferences').get('preferences'),
@@ -55,7 +61,6 @@ export class IdbRepository implements LiveRepository {
         tx.objectStore('avoidanceItems').getAll(),
         tx.objectStore('weeklyReviews').getAll(),
       ]);
-    await tx.done;
     return {
       preferences: withPreferenceDefaults(preferences, this.nowIso()),
       goals,
@@ -134,18 +139,20 @@ export class IdbRepository implements LiveRepository {
   }
 
   async replaceAll(snapshot: Snapshot): Promise<void> {
-    const stores = ALL_STORES.filter((s) => s !== 'meta');
-    const tx = this.db.transaction(stores, 'readwrite');
-    const ops: Promise<unknown>[] = stores.map((s) => tx.objectStore(s).clear());
-    ops.push(tx.objectStore('preferences').put(snapshot.preferences));
-    for (const g of snapshot.goals) ops.push(tx.objectStore('goals').put(g));
-    for (const h of snapshot.habits) ops.push(tx.objectStore('habits').put(h));
-    for (const e of snapshot.habitEvents) ops.push(tx.objectStore('habitEvents').put(e));
-    for (const c of snapshot.checkIns) ops.push(tx.objectStore('checkIns').put(c));
-    for (const d of snapshot.dayRecords) ops.push(tx.objectStore('dayRecords').put(d));
-    for (const a of snapshot.avoidanceItems) ops.push(tx.objectStore('avoidanceItems').put(a));
-    for (const r of snapshot.weeklyReviews) ops.push(tx.objectStore('weeklyReviews').put(r));
-    await runAtomically(tx, ops);
+    const tx = this.db.transaction(DATA_STORES, 'readwrite');
+    await runAtomically(tx, writeAll(tx, snapshot));
+  }
+
+  async updateAll(update: (current: Snapshot) => Snapshot): Promise<Snapshot> {
+    const tx = this.db.transaction(DATA_STORES, 'readwrite');
+    let result: Snapshot | undefined;
+    // Lesen, Berechnen und Schreiben ohne fremde await-Punkte, damit die Transaktion offen bleibt.
+    const op = this.readAll(tx).then((current) => {
+      result = update(current);
+      return Promise.all(writeAll(tx, result));
+    });
+    await runAtomically(tx, [op]);
+    return result!;
   }
 
   async destroy(): Promise<void> {
@@ -156,6 +163,23 @@ export class IdbRepository implements LiveRepository {
   close(): void {
     this.db.close();
   }
+}
+
+/** Alle Stores außer `meta`. */
+const DATA_STORES: StoreName[] = ALL_STORES.filter((s) => s !== 'meta');
+
+/** Leert alle Daten-Stores und schreibt den Bestand neu (innerhalb der übergebenen Transaktion). */
+function writeAll(tx: IDBPTransaction<LiveDB, StoreName[], 'readwrite'>, snapshot: Snapshot): Promise<unknown>[] {
+  const ops: Promise<unknown>[] = DATA_STORES.map((s) => tx.objectStore(s).clear());
+  ops.push(tx.objectStore('preferences').put(snapshot.preferences));
+  for (const g of snapshot.goals) ops.push(tx.objectStore('goals').put(g));
+  for (const h of snapshot.habits) ops.push(tx.objectStore('habits').put(h));
+  for (const e of snapshot.habitEvents) ops.push(tx.objectStore('habitEvents').put(e));
+  for (const c of snapshot.checkIns) ops.push(tx.objectStore('checkIns').put(c));
+  for (const d of snapshot.dayRecords) ops.push(tx.objectStore('dayRecords').put(d));
+  for (const a of snapshot.avoidanceItems) ops.push(tx.objectStore('avoidanceItems').put(a));
+  for (const r of snapshot.weeklyReviews) ops.push(tx.objectStore('weeklyReviews').put(r));
+  return ops;
 }
 
 /**

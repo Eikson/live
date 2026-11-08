@@ -1,11 +1,14 @@
+import { readFileSync } from 'node:fs';
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
 // Für GitHub Pages später z. B. LIVE_BASE=/live/ setzen (siehe docs/entscheidungen.md).
 const base = process.env.LIVE_BASE ?? '/';
+const version = (JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as { version: string }).version;
 
 export default defineConfig({
   base,
+  define: { __APP_VERSION__: JSON.stringify(version) },
   build: { target: 'es2022', sourcemap: true },
   plugins: [
     VitePWA({

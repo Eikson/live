@@ -19,3 +19,15 @@ export function isIndexedDbAvailable(): boolean {
     return false;
   }
 }
+
+export type PersistenceStatus = 'persisted' | 'not-persisted' | 'unknown';
+
+/** Hat der Browser zugesagt, die Daten nicht automatisch zu räumen? Nur zur Anzeige. */
+export async function getPersistenceStatus(): Promise<PersistenceStatus> {
+  try {
+    if (!navigator.storage?.persisted) return 'unknown';
+    return (await navigator.storage.persisted()) ? 'persisted' : 'not-persisted';
+  } catch {
+    return 'unknown';
+  }
+}

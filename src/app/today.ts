@@ -1,3 +1,4 @@
+import { backupReminderDue } from '../domain/backup-reminder';
 import { isWithinBackfill } from '../domain/check-in';
 import type { ReviewWeek } from '../domain/review';
 import { addDays, dateRange, type LocalDate } from '../domain/local-date';
@@ -39,6 +40,10 @@ export interface TodayView {
   review?: ReviewWeek;
   /** Abend-Karte: nur für heute, ab der eingestellten Uhrzeit, solange der Tag nicht abgeschlossen ist. */
   eveningCard: boolean;
+  /** Backup-Hinweis fällig (letztes Backup älter als 14 Tage); nur für heute. */
+  backupDue: boolean;
+  /** Ob es schon einmal einen Export gab (für den Text des Hinweises). */
+  hasBackup: boolean;
   /** Der angezeigte Tag ist abgeschlossen. */
   dayClosed: boolean;
 }
@@ -84,6 +89,8 @@ export async function loadTodayView(ctx: AppContext, requestedDay?: LocalDate): 
     preferences: data.preferences,
     cards,
     dayClosed,
+    backupDue: day === now && backupReminderDue(data.preferences, now),
+    hasBackup: data.preferences.lastBackupAt !== undefined,
     eveningCard: day === now && !dayClosed && isEveningCardTime(minutesOfDay(ctx.clock), data.preferences.eveningCardFrom),
   };
   if (day === now) {

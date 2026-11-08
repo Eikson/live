@@ -1,5 +1,5 @@
 import { de } from '../i18n/de';
-import { dayOfMonth, monthIndex, weekdayOf, type LocalDate, type Weekday } from '../domain/local-date';
+import { dayOfMonth, monthIndex, toLocalDate, weekdayOf, type LocalDate, type Weekday } from '../domain/local-date';
 import type { Cue, Schedule } from '../domain/types';
 
 /** „Do, 5. Nov.“ */
@@ -43,4 +43,14 @@ export function formatDayMonth(date: LocalDate): string {
 /** „November 2026“ aus „2026-11“. */
 export function formatMonth(month: string): string {
   return `${de.date.monthsLong[Number(month.slice(5, 7)) - 1]} ${month.slice(0, 4)}`;
+}
+
+/** „5. Nov. 2026“ */
+export function formatDate(date: LocalDate): string {
+  return `${formatDayMonth(date)} ${date.slice(0, 4)}`;
+}
+
+/** Datum eines ISO-Zeitstempels in lokaler Zeit, z. B. „5. Nov. 2026“. */
+export function formatInstantDate(iso: string): string {
+  return formatDate(toLocalDate(new Date(iso)));
 }

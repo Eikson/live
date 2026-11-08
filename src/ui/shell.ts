@@ -23,6 +23,9 @@ const TAB_OF: Partial<Record<Route, Route>> = {
   'ziel-bearbeiten': 'plan',
   'gewohnheit-bearbeiten': 'plan',
   wochenrueckblick: 'heute',
+  daten: 'einstellungen',
+  gespeichert: 'einstellungen',
+  info: 'einstellungen',
 };
 
 export function createShell(): Shell {
@@ -61,7 +64,7 @@ export function createShell(): Shell {
         if (a.dataset.route === tab) a.setAttribute('aria-current', 'page');
         else a.removeAttribute('aria-current');
       }
-      if (route === 'einstellungen') gear.setAttribute('aria-current', 'page');
+      if (tab === 'einstellungen') gear.setAttribute('aria-current', 'page');
       else gear.removeAttribute('aria-current');
     },
   };

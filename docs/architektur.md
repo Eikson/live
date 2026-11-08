@@ -2,7 +2,7 @@
 
 Live ist eine private, installierbare PWA ohne Backend. Alle Daten liegen in IndexedDB auf dem Gerät. Es gibt keine Netzwerkabhängigkeit, keine externen Fonts oder CDNs, keine Analytics und keine Telemetrie.
 
-Dieses Dokument wächst mit den Schritten. Stand: Schritt 7 (Wochenrückblick).
+Dieses Dokument wächst mit den Schritten. Stand: Schritt 8 (Datenhoheit).
 
 ## Schichten
 
@@ -64,14 +64,18 @@ Der Router arbeitet über den Hash (`#/heute`, `#/plan`, …, siehe E-005). Assi
 - `#/info`: Infoseite „Über Live“ (erreichbar aus Verlauf und Einstellungen).
 - Die Hinweiskarte auf „Heute“ kommt aus `src/app/hint.ts` (`hintFor`, `markHintShown`, `chooseHint`), siehe E-038.
 - `#/wochenrueckblick`: Wochenrückblick (Fragen je Habit im Aufbau, kompakte Liste, Abschluss und Überspringen). Use Cases in `src/app/review.ts`, Regeln (Woche, Fälligkeit, Automatik, Vorschläge) in `src/domain/review.ts`. Die Auswahlknöpfe teilt sich der Bildschirm über `src/ui/toggles.ts` mit dem Abend-Check-in. Vorrang der Karten auf „Heute“ siehe E-046.
-- `#/einstellungen`: Erscheinungsbild und Wochenrückblick (an/aus, Wochentag, Vorschläge).
+- `#/einstellungen`: Erscheinungsbild, Wochenrückblick (an/aus, Wochentag, Vorschläge), Abendkarte, Daten (letzter Export, Backup-Hinweis an/aus) und „Alle Daten löschen“.
+- `#/daten`: Export (wahlweise verschlüsselt) und Import mit Vorschau, „Ersetzen“ oder „Zusammenführen“. Use Cases in `src/app/backup.ts`, siehe Abschnitt „Export und Import“.
+- `#/gespeichert`: „Was wird gespeichert?“ (welche Daten, wo, was nicht).
 
 ## Transaktionen
 
 - `commit(ChangeSet)` schreibt alle betroffenen Stores in **einer** Transaktion: alles oder nichts. Der erste Start legt so Ziel, Habit, Ereignisse und Abschluss gemeinsam an.
 - `upsertCheckIn(habitId, localDate, update)` liest und schreibt den Check-in eines Tages in einer Transaktion. Parallele Aufrufe (Doppeltipp) sehen sich gegenseitig, es entsteht genau ein Eintrag.
 - `closeDay` (`src/app/evening.ts`) schreibt Tagesdatensatz (Stimmung, Energie, Abschlusszeit) und alle Antworten des Abend-Check-ins über `commit` in einer Transaktion. Bestehende Check-ins desselben Tages werden aktualisiert, nicht verdoppelt.
-- `replaceAll(snapshot)` ersetzt den gesamten Bestand transaktional (für den Import, ab Schritt 8).
+- `replaceAll(snapshot)` ersetzt den gesamten Bestand in einer Transaktion (Import „Ersetzen“). Scheitert ein Datensatz, wird abgebrochen und der alte Bestand bleibt.
+- `updateAll(fn)` liest den Bestand, rechnet das Ergebnis und schreibt es in derselben Transaktion (Import „Zusammenführen“). Ein Fehler in `fn` lässt alles unverändert.
+- `destroy()` schließt die Verbindung und löscht die Datenbank ganz („Alle Daten löschen“).
 
 ## Abgeleitete Werte
 
@@ -89,6 +93,62 @@ Die Rechenregeln liegen als reine Funktionen in `src/domain/scoring/` und lesen 
 
 `src/app/scoring.ts` setzt daraus mit den Rohdaten den Kontext eines Tages zusammen; `history.ts` und `hint.ts` bauen darauf ihre Sichten.
 
+## Export und Import
+
+Schichten:
+
+- `src/domain/snapshot.ts`: der gesamte Bestand als ein Objekt (alle Stores außer `meta`, Löschmarkierungen inklusive).
+- `src/domain/backup-schema.ts`: Dateiformat, Prüfung, Migration der Formatversion, Vorschau.
+- `src/domain/merge.ts`: Regeln für „Zusammenführen“.
+- `src/domain/backup-reminder.ts`: Fälligkeit des Backup-Hinweises.
+- `src/platform/crypto.ts`: Verschlüsselung mit WebCrypto.
+- `src/platform/files.ts`: Download, Teilen und Dateiauswahl.
+- `src/app/backup.ts`: die Use Cases.
+
+Dateiformat (`live-backup`, `formatVersion` 1):
+
+```json
+{ "format": "live-backup", "formatVersion": 1, "exportedAt": "…", "appVersion": "0.1.0",
+  "data": { "preferences": {…}, "goals": […], "habits": […], "habitEvents": […], "checkIns": […],
+            "dayRecords": […], "avoidanceItems": […], "weeklyReviews": […] } }
+```
+
+Abgeleitete Werte stehen nicht in der Datei. Dateinamen:
+
+- `live-backup-JJJJ-MM-TT.json`
+- verschlüsselt `live-backup-JJJJ-MM-TT-verschluesselt.json`
+- Sicherheitskopie vor „Ersetzen“: `live-sicherheitskopie-JJJJ-MM-TT.json`
+
+Verschlüsselt ist die ganze JSON-Datei. Die Hülle `live-backup-encrypted` enthält:
+
+- `kdf`: PBKDF2, SHA-256, 600 000 Iterationen, 16 Byte Salt
+- `cipher`: AES-GCM 256, 12 Byte IV
+- `ciphertext` (Base64)
+
+Ein falsches Passwort und ein veränderter Chiffretext ergeben dieselbe Meldung, denn AES-GCM erkennt beides.
+
+Import (`readBackupFile`, gegebenenfalls `unlockBackup`):
+
+1. Dateien über 20 MB werden abgelehnt, ohne sie zu lesen.
+2. Kein JSON, unbekanntes Format oder eine neuere Formatversion ergeben je eine eigene, verständliche Meldung.
+3. Ältere Formatversionen laufen schrittweise durch die Migrationen in `backup-schema.ts`.
+4. Die Prüfung übernimmt nur bekannte Felder und prüft Typen, Längen, Datumsformate und Bezüge (Habit → Ziel, Check-in → Habit, ein Check-in je Habit und Tag). **Fehlt ein Store, ist die Datei ungültig** und wird nicht als leer gelesen, damit „Ersetzen“ nie still Daten löscht (E-050).
+5. Danach zeigt die Vorschau:
+   - Exportdatum
+   - Anzahl Ziele, Habits und Check-ins (nur lebende)
+   - Zeitraum der Check-ins
+
+Die beiden Wege:
+
+- **Ersetzen** (`importReplace`):
+  1. Zuerst wird die Sicherheitskopie des aktuellen Bestands gespeichert. Scheitert das, bricht der Import ab, ohne etwas zu ändern.
+  2. Dann folgt `replaceAll`.
+  3. `onboardingCompletedAt` kommt aus der Datei.
+  4. `lastBackupAt` wird auf den Exportzeitpunkt der Datei gesetzt, denn dieser Stand liegt ja als Datei vor.
+- **Zusammenführen** (`importMerge`): `mergeSnapshots(lokal, Datei)` innerhalb von `updateAll`. Regeln siehe E-049.
+
+Erst nach dem Speichern oder Teilen setzt `markBackupDone` den Zeitpunkt des letzten Exports (`lastBackupAt`). Ein abgebrochener Teilen-Dialog zählt nicht.
+
 ## Testdaten
 
 `npm run dev`, dann `/seed.html` öffnen. Die Seite ersetzt nach Rückfrage alle Daten in diesem Browser durch Testdaten über rund sieben Monate, wahlweise mit gleichmäßigem Verlauf oder mit schwacher letzter Woche (dann erscheint die Hinweiskarte). Erzeugt werden sie deterministisch von `buildSeed` in `src/dev/seed.ts`. Die Seite gehört nicht zum Build (siehe E-039).
@@ -105,10 +165,14 @@ Die Rechenregeln liegen als reine Funktionen in `src/domain/scoring/` und lesen 
 
 ## Tests
 
-- `tests/unit/`: Domain-Logik (Datum inklusive Sommerzeit, Planung, Status, Check-in, Erfüllung, Integration, Score, Korridor, Vergleich, Hinweislogik, Abend, Ausweichliste und Wochenrückblick)
-- `tests/integration/`: Repository und Use Cases gegen fake-indexeddb (Transaktionen, eindeutiger Index, Migrationen, erste Schleife, Planung, Bearbeiten/Pausieren/Löschen/Wiedereinstieg, Tagesabschluss, Ausnahmetage, Gegen-Habits, Verlauf und Hinweiskarte mit den Testdaten, Wochenrückblick)
+- `tests/unit/`: Domain-Logik (Datum inklusive Sommerzeit, Planung, Status, Check-in, Erfüllung, Integration, Score, Korridor, Vergleich, Hinweislogik, Abend, Ausweichliste, Wochenrückblick, Exportformat, Importprüfung, Verschlüsselung, Zusammenführen und Backup-Hinweis)
+- `tests/integration/`: Repository und Use Cases gegen fake-indexeddb (Transaktionen, eindeutiger Index, Migrationen, erste Schleife, Planung, Bearbeiten/Pausieren/Löschen/Wiedereinstieg, Tagesabschluss, Ausnahmetage, Gegen-Habits, Verlauf und Hinweiskarte mit den Testdaten, Wochenrückblick, Export/Import mit Sicherheitskopie und Zusammenführen zwischen zwei Geräten, Alle Daten löschen)
 - `tests/e2e/`: Playwright in Chromium mit Pixel-8-Viewport und Desktop; gemeinsame Abläufe in `tests/e2e/helpers.ts`
 
 ## Grenzen der PWA
 
 Wird im Lauf der Schritte ergänzt (Speicherbereinigung durch den Browser, Benachrichtigungen, Installation unter Android).
+
+- Die Daten liegen nur in diesem Browser auf diesem Gerät. Wer sie absichern will, muss selbst exportieren und die Datei an einen anderen Ort legen. Der Backup-Hinweis erinnert daran, mehr nicht.
+- Teilen (`navigator.share` mit Datei) gibt es nicht überall. Fehlt es, wird die Datei heruntergeladen. Nach einer langsamen Verschlüsselung kann der Browser das Teilen ablehnen, weil der Tipp zu lange zurückliegt. Dann wird ebenfalls heruntergeladen.
+- „Alle Daten löschen“ löscht die Datenbank. Halten andere Tabs der App sie noch offen, kann das Löschen warten, bis diese geschlossen sind.

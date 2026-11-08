@@ -205,3 +205,39 @@ Integrierte Habits und Gegen-Habits stehen in einer kompakten Liste mit „passt
 - Vorrang auf „Heute“: Wiedereinstieg vor Hinweiskarte vor Wochenrückblick vor Abendkarte. Ist eine dieser Karten zu sehen, wird die Abendkarte zum Link. Die Seite `#/wochenrueckblick` ist auch erreichbar, wenn der Wiedereinstieg Vorrang hat.
 - Der Verlauf zeigt im Kalender je Habit die Rückblickswerte der Wochen, die im Monat beginnen (Leichtigkeit, im geplanten Moment, Automatik).
 - Einstellungen: Wochenrückblick an/aus, Wochentag, Vorschläge an/aus. Änderungen werden sofort gespeichert.
+
+## E-047 Exportformat
+
+Eine einzige JSON-Datei mit allen Stores außer `meta`. Sie enthält Format, Formatversion, Exportzeitpunkt und App-Version. Löschmarkierungen gehören dazu, damit „Zusammenführen“ Löschungen auf ein anderes Gerät übertragen kann. Abgeleitete Werte (Score, Status, Boden, Decke, Hinweise) fehlen, denn sie werden beim Laden neu berechnet. Unbekannte Felder werden beim Import verworfen. Neuere Formatversionen lehnt die App ab, statt sie halb zu lesen.
+
+## E-048 Verschlüsselung
+
+Wahlweise mit Passwort (mindestens 8 Zeichen, zweimal eingeben). Verschlüsselt wird mit WebCrypto: AES-GCM 256 mit einem Schlüssel aus PBKDF2-SHA-256 und 600 000 Iterationen. Salt und IV sind je Export zufällig. Die Hülle verrät nur Format und Parameter, keine Inhalte. Das Passwort wird nirgends gespeichert. Geht es verloren, lässt sich die Datei nicht mehr öffnen; das steht beim Export. Beim Einlesen werden unplausible Parameter abgelehnt, etwa eine sehr hohe Iterationszahl oder ein anderes Verfahren.
+
+## E-049 Regeln für „Zusammenführen“
+
+- Datensätze mit derselben ID: Der neuere Stand gewinnt (`updatedAt` oder `deletedAt`). Bei gleichem Zeitpunkt gewinnt eine Löschmarkierung, sonst bleibt der lokale Stand.
+- Check-ins sind je Habit und Tag eindeutig. Gibt es auf beiden Seiten verschiedene IDs für denselben Tag, bleibt der neuere. Der andere wird zur Löschmarkierung.
+- Tagesdatensätze werden je Datum verglichen. Pro Woche bleibt höchstens ein Rückblick, der neuere.
+- Ereignisse werden vereinigt (gleiche ID nur einmal).
+- Löschungen wirken weiter: Ein gelöschtes Ziel löscht seine Habits. Gelöschte Habits verlieren ihre Check-ins, Ereignisse und Rückblick-Einträge.
+- Einstellungen: Der neuere Stand gewinnt. Der erste Start ist der früheste der beiden, der letzte Export der späteste.
+- Dieselbe Datei zweimal einzuspielen ändert nichts.
+- Die Grenze von zwei Habits im Aufbau wird beim Zusammenführen nicht erzwungen. Kommen so mehr zusammen, bleiben alle bestehen. Neue Habits lassen sich erst wieder anlegen, wenn Platz ist.
+
+## E-050 Sicherheitskopie und Prüfung vor dem Ersetzen
+
+Vor „Ersetzen“ speichert die App automatisch eine Sicherheitskopie des aktuellen Stands als Datei (`live-sicherheitskopie-…json`). Scheitert das, wird nichts ersetzt. Das Ersetzen selbst läuft in einer Transaktion. Eine Datei, der ein Store fehlt, gilt als ungültig, statt als leerer Store gelesen zu werden. Sonst könnte eine unvollständige Datei beim Ersetzen still Daten löschen.
+
+## E-051 Backup-Hinweis
+
+- **Wann:** Die Karte auf „Heute“ erscheint, wenn der letzte Export mehr als 14 Tage zurückliegt. Ohne Export zählt der erste Start.
+- **Vorrang:** Sie hat den niedrigsten Vorrang aller Karten (nach Wiedereinstieg, Hinweiskarte, Wochenrückblick und Abendkarte). So drängt sie sich nicht vor das Eintragen.
+- **Text:** „Exportieren“ führt zu `#/daten`. „Später“ blendet die Karte für heute aus; das steht in `ui-memory`, nicht in der Datenbank.
+- **Einstellungen:** Dort lässt sich der Hinweis abschalten, und der Zeitpunkt des letzten Exports ist zu sehen.
+- **Was zählt:** Ein Export zählt erst nach dem Speichern oder Teilen. Ein eingespielter Stand zählt mit seinem Exportzeitpunkt.
+
+## E-052 Import nur aus den Einstellungen, „Alle Daten löschen“
+
+- **Import:** Er ist über Einstellungen → „Exportieren und importieren“ erreichbar, nicht aus dem ersten Start. Wer auf einem neuen Gerät anfängt, durchläuft den kurzen ersten Start und ersetzt danach den Bestand. Ein eigener Einstieg im ersten Start wäre zusätzlicher Umfang, der nicht verlangt war.
+- **Alle Daten löschen:** Das verlangt die Eingabe „löschen“. Dann wird die Datenbank vollständig entfernt, Löschmarkierungen eingeschlossen, ebenso die Merkwerte im localStorage. Danach beginnt die App mit dem ersten Start.

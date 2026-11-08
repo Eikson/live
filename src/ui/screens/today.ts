@@ -11,7 +11,7 @@ import type { BuildOutcome, CheckIn, Habit } from '../../domain/types';
 import { de } from '../../i18n/de';
 import { h, icon, icons, uid } from '../dom';
 import { formatCue, formatDayMonth, formatDayShort, formatWeekdayShort } from '../format';
-import { dismissReentry, isReentryDismissed } from '../../platform/ui-memory';
+import { dismissReentry, hideBackupHintOn, isBackupHintHiddenOn, isReentryDismissed } from '../../platform/ui-memory';
 import { dayPicker } from '../day-picker';
 import { navigate, routeHref } from '../router';
 import type { Screen } from '../screen';
@@ -527,6 +527,23 @@ function reviewCard(week: ReviewWeek): HTMLElement {
   );
 }
 
+/** Dezenter Backup-Hinweis. „Später“ blendet ihn für den heutigen Tag aus. */
+function backupCard(view: TodayView, later: () => void): HTMLElement {
+  const t = de.backupCard;
+  return h(
+    'div',
+    { class: 'card backup-card', 'data-role': 'backup-card' },
+    h('p', { class: 'label' }, t.label),
+    h('p', null, view.hasBackup ? t.due : t.none),
+    h(
+      'div',
+      { class: 'actions' },
+      h('a', { class: 'button', href: routeHref('daten') }, t.export),
+      h('button', { type: 'button', class: 'button quiet', onclick: later }, t.later),
+    ),
+  );
+}
+
 /**
  * Zugang zum Abend-Check-in. Ab der eingestellten Uhrzeit als ruhige Karte (nicht neben der
  * Wiedereinstiegskarte), sonst als schlichter Link. Ein abgeschlossener Tag lässt sich ändern.
@@ -625,6 +642,16 @@ export const todayScreen: Screen = async ({ ctx }) => {
     const reviewShown = Boolean(view.review && !reentryShown && !hintShown);
     if (view.review && reviewShown) nodes.push(reviewCard(view.review));
     nodes.push(eveningEntry(view, reentryShown || hintShown || reviewShown));
+    // Backup-Hinweis hat den niedrigsten Rang: nur, wenn keine andere Kontextkarte sichtbar ist.
+    const otherCard = reentryShown || hintShown || reviewShown || view.eveningCard;
+    if (view.backupDue && !otherCard && !isBackupHintHiddenOn(view.today)) {
+      nodes.push(
+        backupCard(view, () => {
+          hideBackupHintOn(view.today);
+          void show(undefined, false).then(() => section.querySelector<HTMLElement>('h1')?.focus());
+        }),
+      );
+    }
     nodes.push(dayPicker(view, (d) => void show(d, true)));
     section.replaceChildren(...nodes);
     if (focus) heading.focus();

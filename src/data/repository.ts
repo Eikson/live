@@ -1,4 +1,5 @@
 import type { LocalDate } from '../domain/local-date';
+import type { Snapshot } from '../domain/snapshot';
 import type {
   AvoidanceItem,
   CheckIn,
@@ -11,17 +12,7 @@ import type {
   WeeklyReview,
 } from '../domain/types';
 
-/** Vollständiger Bestand inklusive Löschmarkierungen (Grundlage für Export und Zusammenführen). */
-export interface Snapshot {
-  preferences: Preferences;
-  goals: Stored<Goal>[];
-  habits: Stored<Habit>[];
-  habitEvents: HabitEvent[];
-  checkIns: Stored<CheckIn>[];
-  dayRecords: DayRecord[];
-  avoidanceItems: Stored<AvoidanceItem>[];
-  weeklyReviews: WeeklyReview[];
-}
+export type { Snapshot };
 
 /** Lebende Datensätze ohne Löschmarkierungen – die Sicht der Oberfläche. */
 export interface LiveData {
@@ -76,6 +67,11 @@ export interface LiveRepository {
   ): Promise<Stored<CheckIn> | null>;
   /** Ersetzt den gesamten Bestand transaktional. */
   replaceAll(snapshot: Snapshot): Promise<void>;
+  /**
+   * Liest den gesamten Bestand und schreibt das Ergebnis von `update` in **einer**
+   * Transaktion (z. B. Zusammenführen beim Import). `update` muss synchron sein.
+   */
+  updateAll(update: (current: Snapshot) => Snapshot): Promise<Snapshot>;
   /** Entfernt die komplette Datenbank. */
   destroy(): Promise<void>;
   close(): void;

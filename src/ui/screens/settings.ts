@@ -1,10 +1,14 @@
+import { deleteAllData } from '../../app/backup';
+import type { AppContext } from '../../app/context';
 import { setTheme, updatePreferences } from '../../app/preferences';
-import type { Weekday } from '../../domain/local-date';
+import { backupReminderDue } from '../../domain/backup-reminder';
+import { toLocalDate, type Weekday } from '../../domain/local-date';
 import type { Preferences, Theme } from '../../domain/types';
 import { de } from '../../i18n/de';
 import { applyTheme } from '../../platform/theme';
+import { clearUiMemory } from '../../platform/ui-memory';
 import { h, uid } from '../dom';
-import { WEEK_ORDER } from '../format';
+import { formatInstantDate, WEEK_ORDER } from '../format';
 import { routeHref } from '../router';
 import type { Screen } from '../screen';
 
@@ -94,15 +98,112 @@ export const settingsScreen: Screen = async ({ ctx }) => {
     h('p', { class: 'hint' }, de.settings.suggestionsHint),
   );
 
+  const eveningId = uid('evening-from');
+  const evening = h(
+    'fieldset',
+    { class: 'card' },
+    h('legend', null, de.settings.evening),
+    h(
+      'div',
+      { class: 'field' },
+      h('label', { for: eveningId }, de.settings.eveningFrom),
+      h('input', {
+        id: eveningId,
+        type: 'time',
+        name: 'eveningCardFrom',
+        value: prefs.eveningCardFrom,
+        onchange: (e) => {
+          const value = (e.target as HTMLInputElement).value;
+          if (/^([01]\d|2[0-3]):[0-5]\d$/.test(value)) void save({ eveningCardFrom: value });
+        },
+      }),
+    ),
+    h('p', { class: 'hint' }, de.settings.eveningHint),
+  );
+
+  const today = toLocalDate(ctx.clock.now());
+  const data = h(
+    'fieldset',
+    { class: 'card', 'data-role': 'settings-data' },
+    h('legend', null, de.settings.data),
+    h(
+      'p',
+      { class: 'muted', 'data-role': 'last-backup' },
+      prefs.lastBackupAt ? de.settings.lastBackup(formatInstantDate(prefs.lastBackupAt)) : de.settings.noBackup,
+    ),
+    backupReminderDue(prefs, today) ? h('p', { 'data-role': 'backup-due' }, de.settings.backupDue) : null,
+    h('p', null, h('a', { class: 'button', href: routeHref('daten') }, de.settings.toData)),
+    h(
+      'label',
+      { class: 'choice' },
+      h('input', {
+        type: 'checkbox',
+        name: 'backupReminderEnabled',
+        checked: prefs.backupReminderEnabled,
+        onchange: (e) => void save({ backupReminderEnabled: (e.target as HTMLInputElement).checked }),
+      }),
+      h('span', null, de.settings.backupReminder),
+    ),
+    h('p', null, h('a', { class: 'button link', href: routeHref('gespeichert') }, de.settings.toStored)),
+  );
+
   return h(
     'section',
     { class: 'screen' },
     h('h1', { tabindex: '-1' }, de.settings.heading),
     h('fieldset', { class: 'card segmented' }, h('legend', null, de.settings.appearance), options),
     review,
+    evening,
+    data,
     status,
     saved,
-    h('p', { class: 'muted' }, de.settings.later),
     h('p', null, h('a', { class: 'button link', href: routeHref('info') }, de.settings.info)),
+    deleteAllSection(ctx),
   );
 };
+
+/** „Alle Daten löschen“: nur nach Eingabe von „löschen“. Danach startet die App neu beim Erststart. */
+function deleteAllSection(ctx: AppContext): HTMLElement {
+  const t = de.settings;
+  const inputId = uid('delete-all');
+  const input = h('input', { id: inputId, type: 'text', name: 'deleteConfirm', autocomplete: 'off', spellcheck: 'false' });
+  const error = h('p', { class: 'form-error', role: 'alert', hidden: true });
+  const button = h(
+    'button',
+    {
+      type: 'button',
+      class: 'button',
+      'data-action': 'delete-all',
+      onclick: async () => {
+        if (input.value.trim().toLocaleLowerCase('de') !== t.deleteAllWord) {
+          error.textContent = t.deleteAllMismatch;
+          error.hidden = false;
+          input.focus();
+          return;
+        }
+        button.disabled = true;
+        try {
+          await deleteAllData(ctx);
+        } catch {
+          button.disabled = false;
+          error.textContent = t.deleteAllFailed;
+          error.hidden = false;
+          return;
+        }
+        clearUiMemory();
+        history.replaceState(null, '', routeHref('start'));
+        location.reload();
+      },
+    },
+    t.deleteAllButton,
+  );
+  return h(
+    'fieldset',
+    { class: 'card', 'data-role': 'delete-all' },
+    h('legend', null, t.deleteAll),
+    h('p', null, t.deleteAllBody),
+    h('div', { class: 'field' }, h('label', { for: inputId }, t.deleteAllLabel), input),
+    error,
+    h('div', { class: 'actions' }, button),
+  );
+}

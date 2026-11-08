@@ -13,6 +13,8 @@ import type { Screen, ScreenEnv } from './ui/screen';
 import { renderStorageError } from './ui/screens/error';
 import { avoidanceListScreen } from './ui/screens/avoidance-list';
 import { reviewScreen } from './ui/screens/review';
+import { dataScreen } from './ui/screens/data';
+import { storedScreen } from './ui/screens/stored';
 import { counterNewScreen } from './ui/screens/counter-new';
 import { eveningScreen } from './ui/screens/evening';
 import { goalEditScreen } from './ui/screens/goal-edit';
@@ -42,6 +44,8 @@ const SCREENS: Record<Route, Screen> = {
   'gegen-habit-neu': counterNewScreen,
   ausweichliste: avoidanceListScreen,
   wochenrueckblick: reviewScreen,
+  daten: dataScreen,
+  gespeichert: storedScreen,
 };
 
 /** Seiten, die bei einem Tageswechsel neu aufgebaut werden (keine Formulare mit offenen Eingaben). */

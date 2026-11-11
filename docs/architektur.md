@@ -2,7 +2,7 @@
 
 Live ist eine private, installierbare PWA ohne Backend. Alle Daten liegen in IndexedDB auf dem Gerät. Es gibt keine Netzwerkabhängigkeit, keine externen Fonts oder CDNs, keine Analytics und keine Telemetrie.
 
-Dieses Dokument wächst mit den Schritten. Stand: Schritt 10 (Abnahme und Vorbereitung des Deployments).
+Dieses Dokument wächst mit den Schritten. Stand: Schritt 11 (Vorhaben).
 
 ## Schichten
 
@@ -25,7 +25,7 @@ Tage werden als lokales Datum `YYYY-MM-DD` (`LocalDate`) gespeichert, nie als Ze
 
 ## Datenmodell
 
-IndexedDB `live`, Schema-Version 1:
+IndexedDB `live`, Schema-Version 2:
 
 | Store | Schlüssel | Indizes | Inhalt |
 |---|---|---|---|
@@ -37,6 +37,7 @@ IndexedDB `live`, Schema-Version 1:
 | `dayRecords` | `localDate` | | Ausnahmetage, Tagesabschluss, Befinden |
 | `avoidanceItems` | `id` | | Dinge, die du bewusst lässt |
 | `weeklyReviews` | `id` | `weekStart` (eindeutig) | Wochenrückblicke |
+| `tasks` | `id` | | Vorhaben: einmalige Aufgaben mit Deadline, geplantem und tatsächlichem Start |
 | `meta` | `key` | | `dbVersion`, `exportFormatVersion` |
 
 Alle Datensätze haben stabile IDs, `createdAt` und `updatedAt`. Löschbare Datensätze werden zu Löschmarkierungen `{ id, deletedAt }` ohne Inhalt. Weil ihnen `habitId` und `localDate` fehlen, fallen sie aus dem eindeutigen Index, und ein neuer Eintrag für denselben Tag ist wieder möglich. `loadLive()` liefert nur lebende Datensätze, `loadSnapshot()` alles (Grundlage für Export und Zusammenführen).
@@ -46,6 +47,17 @@ Alle Datensätze haben stabile IDs, `createdAt` und `updatedAt`. Löschbare Date
 Ein Habit speichert nur seinen aktuellen Stand. Wie es an einem früheren Tag aussah (Status, Plan, Gewicht), leitet `buildTimeline` aus dem Ereignisprotokoll ab. So bleibt eine Planänderung heute ohne Wirkung auf die Bewertung vergangener Tage.
 
 Neue Ereignisse bekommen ihren Zeitstempel über `eventTime` (`src/app/planning.ts`): jetzt, aber mindestens eine Millisekunde nach dem letzten gespeicherten Ereignis. Damit ist die Reihenfolge auch bei schnell aufeinanderfolgenden Aktionen oder einer zurückgestellten Uhr eindeutig.
+
+## Vorhaben
+
+Ein Vorhaben (`Task`) ist eine einmalige Aufgabe mit Deadline. Es steht neben den Gewohnheiten und zählt nicht zum Niveau. Gemessen wird die Lücke zwischen geplantem und tatsächlichem Start (siehe E-058 bis E-063).
+
+- `src/domain/task.ts`: Prüfung der Angaben, Phasen (kommend, fällig, laufend, abgeschlossen), Startlatenz, Regeln fürs Verschieben, Kennzahlen (`taskMetrics`) und der Wochenbeleg (`weekProof`). Alles rein und nie gespeichert.
+- `src/domain/ics.ts`: Kalendereintrag für den geplanten Start als iCalendar-Text.
+- `src/app/tasks.ts`: Use Cases (anlegen, bearbeiten, anfangen, verschieben, Frage nach spätem Start, Review, abschließen, beenden, löschen) und die Sichten für „Heute“ und den Plan.
+- `src/ui/task-cards.ts`: Karte auf „Heute“ mit Start, Verschieben und Abschluss.
+- `src/ui/screens/task-form.ts`: `#/vorhaben-neu` und `#/vorhaben-bearbeiten?id=<id>`.
+- Der Plan zeigt offene und abgeschlossene Vorhaben, der Verlauf die Kennzahlen, der Wochenrückblick einen Belegsatz.
 
 ## Bildschirme und Routen
 
@@ -106,12 +118,12 @@ Schichten:
 - `src/platform/files.ts`: Download, Teilen und Dateiauswahl.
 - `src/app/backup.ts`: die Use Cases.
 
-Dateiformat (`live-backup`, `formatVersion` 1):
+Dateiformat (`live-backup`, `formatVersion` 2; Version 1 kannte noch keine Vorhaben und wird beim Lesen um eine leere Liste ergänzt):
 
 ```json
-{ "format": "live-backup", "formatVersion": 1, "exportedAt": "…", "appVersion": "0.1.0",
+{ "format": "live-backup", "formatVersion": 2, "exportedAt": "…", "appVersion": "0.1.0",
   "data": { "preferences": {…}, "goals": […], "habits": […], "habitEvents": […], "checkIns": […],
-            "dayRecords": […], "avoidanceItems": […], "weeklyReviews": […] } }
+            "dayRecords": […], "avoidanceItems": […], "weeklyReviews": […], "tasks": […] } }
 ```
 
 Abgeleitete Werte stehen nicht in der Datei. Dateinamen:
@@ -156,7 +168,7 @@ Erst nach dem Speichern oder Teilen setzt `markBackupDone` den Zeitpunkt des let
 
 ## Migrationen
 
-`src/data/migrations.ts` enthält pro Schema-Version eine Migration (`1` legt die Stores an). `openDatabase` prüft vor dem Öffnen, dass für jede Version bis zur Zielversion eine Migration existiert, und führt die fehlenden nacheinander in der Upgrade-Transaktion aus. Schlägt eine Migration fehl, wird die Transaktion abgebrochen: Die Datenbank bleibt auf der alten Version und behält ihre Daten (siehe E-010). Danach steht die aktuelle Version in `meta.dbVersion`.
+`src/data/migrations.ts` enthält pro Schema-Version eine Migration (`1` legt die Stores an, `2` ergänzt den Store `tasks`). `openDatabase` prüft vor dem Öffnen, dass für jede Version bis zur Zielversion eine Migration existiert, und führt die fehlenden nacheinander in der Upgrade-Transaktion aus. Schlägt eine Migration fehl, wird die Transaktion abgebrochen: Die Datenbank bleibt auf der alten Version und behält ihre Daten (siehe E-010). Danach steht die aktuelle Version in `meta.dbVersion`.
 
 Öffnet ein anderer Tab eine neuere Version, gibt dieser Tab seine Verbindung frei und bittet um ein Neuladen.
 
@@ -180,6 +192,7 @@ Erst nach dem Speichern oder Teilen setzt `markBackupDone` den Zeitpunkt des let
 
 - `tests/unit/`: Domain-Logik (Datum inklusive Sommerzeit, Planung, Status, Check-in, Erfüllung, Integration, Score, Korridor, Vergleich, Hinweislogik, Abend, Ausweichliste, Wochenrückblick, Exportformat, Importprüfung, Verschlüsselung, Zusammenführen und Backup-Hinweis)
 - `tests/integration/`: Repository und Use Cases gegen fake-indexeddb (Transaktionen, eindeutiger Index, Migrationen, erste Schleife, Planung, Bearbeiten/Pausieren/Löschen/Wiedereinstieg, Tagesabschluss, Ausnahmetage, Gegen-Habits, Verlauf und Hinweiskarte mit den Testdaten, Wochenrückblick, Export/Import mit Sicherheitskopie und Zusammenführen zwischen zwei Geräten, Alle Daten löschen)
+- `tests/unit/task.test.ts`, `tests/integration/tasks.test.ts`, `tests/e2e/tasks.spec.ts`: Vorhaben von den Regeln über die Use Cases bis zum Ablauf im Browser, dazu Kalendereintrag, Export und Zusammenführen
 - `tests/unit/contrast.test.ts`: Kontraste der Farb-Tokens aus `styles.css` nach WCAG AA, hell und dunkel (E-056)
 - `tests/e2e/`: Playwright in Chromium mit Pixel-8-Viewport und Desktop; gemeinsame Abläufe in `tests/e2e/helpers.ts`
 - `tests/e2e/base-path.spec.ts`: nur mit `LIVE_BASE` (z. B. `/live/`): Service-Worker-Scope, Manifest und Offline-Start unter dem Unterpfad wie auf GitHub Pages. `E2E_PORT` wählt einen anderen Port, falls 4173 belegt ist.

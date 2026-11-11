@@ -9,6 +9,7 @@ import type {
   HabitEvent,
   Preferences,
   Stored,
+  Task,
   WeeklyReview,
 } from '../domain/types';
 
@@ -24,6 +25,7 @@ export interface LiveData {
   dayRecords: DayRecord[];
   avoidanceItems: AvoidanceItem[];
   weeklyReviews: WeeklyReview[];
+  tasks: Task[];
 }
 
 /**
@@ -44,6 +46,7 @@ export interface ChangeSet {
   avoidanceItems?: Stored<AvoidanceItem>[];
   weeklyReviews?: WeeklyReview[];
   removeWeeklyReviews?: string[];
+  tasks?: Stored<Task>[];
 }
 
 export interface LiveRepository {

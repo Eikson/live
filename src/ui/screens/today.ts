@@ -13,6 +13,7 @@ import { h, icon, icons, uid } from '../dom';
 import { formatCue, formatDayMonth, formatDayShort, formatWeekdayShort } from '../format';
 import { dismissReentry, hideBackupHintOn, isBackupHintHiddenOn, isReentryDismissed } from '../../platform/ui-memory';
 import { dayPicker } from '../day-picker';
+import { taskCard } from '../task-cards';
 import { navigate, routeHref } from '../router';
 import type { Screen } from '../screen';
 
@@ -623,7 +624,17 @@ export const todayScreen: Screen = async ({ ctx }) => {
       );
     }
 
-    if (view.cards.length === 0) {
+    // Vorhaben stehen vor den Gewohnheiten: Der geplante Start ist der Moment, um den es geht.
+    for (const item of view.tasks) {
+      nodes.push(
+        taskCard(ctx, item, view.today, (text) => {
+          void show(undefined, false, text).then(() => section.querySelector<HTMLElement>('[data-role="today-status"]')?.focus());
+        }),
+      );
+    }
+
+    // Gibt es nur Vorhaben und keine Gewohnheit, entfällt der Hinweis „nichts geplant“.
+    if (view.cards.length === 0 && view.tasks.length === 0) {
       nodes.push(
         past
           ? h('div', { class: 'card empty' }, h('p', null, de.today.past.emptyTitle))

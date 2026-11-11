@@ -1,6 +1,6 @@
 # Live
 
-Private Web-App für Gewohnheiten und nächste Schritte. Live läuft komplett im Browser: kein Konto, kein Server, keine Analyse. Die Daten liegen in IndexedDB auf dem jeweiligen Gerät.
+Private Web-App für Gewohnheiten, nächste Schritte und Vorhaben mit Deadline. Live läuft komplett im Browser: kein Konto, kein Server, keine Analyse. Die Daten liegen in IndexedDB auf dem jeweiligen Gerät.
 
 ## Voraussetzungen
 

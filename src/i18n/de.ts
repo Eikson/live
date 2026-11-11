@@ -483,9 +483,18 @@ export const de = {
         ],
       },
       {
+        title: 'Was Vorhaben messen',
+        body: [
+          'Ein Vorhaben ist eine einmalige Aufgabe mit Deadline. Du legst fest, wann du anfangen willst und was der kleinste sichtbare Schritt ist. Live hält fest, wann du angefangen hast.',
+          'Der Abstand zwischen geplantem und tatsächlichem Start ist die wichtigste Zahl. Verschiebst du bewusst und mit Grund, gilt der neue Tag. Vorhaben zählen nicht zum Niveau.',
+          'Die Fragen beim Start sind freiwillig. Sie helfen, das unangenehme Gefühl zu benennen und trotzdem den ersten Schritt zu tun.',
+        ],
+      },
+      {
         title: 'Warum es keine Erinnerungen gibt',
         body: [
           'Live schickt keine Benachrichtigungen. Der Auslöser deiner Gewohnheit soll im Alltag liegen, nicht im Telefon. Ein Hinweis erscheint nur in der App und nur, wenn sich über mehrere Tage ein Muster zeigt.',
+          'Für den Start eines Vorhabens kannst du im Plan einen Kalendereintrag als Datei erstellen und in deinen eigenen Kalender legen.',
         ],
       },
     ],
@@ -661,10 +670,11 @@ export const de = {
       'Deine Check-ins, Notizen und Befinden-Einträge',
       'Gegen-Habits und deine Ausweichliste',
       'Deine Wochenrückblicke',
+      'Deine Vorhaben mit Deadline, Start, Dauer und Gründen fürs Verschieben',
       'Deine Einstellungen und das Datum des letzten Exports',
     ],
     notHeading: 'Was nicht gespeichert wird',
-    not: 'Niveau, Integration und Hinweise werden nicht gespeichert. Live berechnet sie jedes Mal neu aus deinen Einträgen.',
+    not: 'Niveau, Integration, Hinweise und die Kennzahlen der Vorhaben werden nicht gespeichert. Live berechnet sie jedes Mal neu aus deinen Einträgen.',
     statusHeading: 'Dauerhafter Speicher',
     status: {
       persisted: 'Der Browser hat zugesagt, diese Daten nicht von sich aus zu löschen, wenn der Speicher knapp wird. Löschst du die Browserdaten selbst, sind sie trotzdem weg.',
@@ -701,6 +711,178 @@ export const de = {
       'Deinstallierst du die App, können je nach Browser auch die Daten entfernt werden. Exportiere vorher.',
     ],
     back: 'Zurück zu den Einstellungen',
+  },
+  tasks: {
+    heading: 'Vorhaben',
+    intro: 'Einmalige Aufgaben mit Deadline. Live hält fest, wann du anfangen wolltest und wann du angefangen hast.',
+    empty: 'Kein offenes Vorhaben.',
+    add: '+ Vorhaben',
+    addLabel: 'Vorhaben hinzufügen',
+    limit: (n: number) => `Du hast ${n} offene Vorhaben. Ein neues geht, sobald eines abgeschlossen ist.`,
+    newHeading: 'Neues Vorhaben',
+    editHeading: 'Vorhaben bearbeiten',
+    missing: 'Dieses Vorhaben lässt sich nicht mehr bearbeiten.',
+    toPlan: 'Zum Plan',
+    form: {
+      title: 'Was steht an?',
+      titleHint: 'Z. B. „Steering-Deck“.',
+      deadline: 'Wann soll das Ergebnis bei jemand anderem sein?',
+      plannedStart: 'Wann willst du zum ersten Mal sichtbar daran arbeiten?',
+      plannedStartFixed: (date: string) =>
+        `Geplanter Start: ${date}. Ist der Start erreicht, änderst du ihn auf „Heute“ über „Verschieben“.`,
+      plannedStartTime: 'Uhrzeit für den Start',
+      plannedStartTimeHint: 'Nur für den Kalendereintrag.',
+      firstStep: 'Was ist nach 15 Minuten auf dem Bildschirm anders?',
+      firstStepHint: 'Der kleinste sichtbare Schritt, z. B. „Fünf Überschriften für die Storyline“.',
+      estimate: 'Wie viele fokussierte Minuten braucht das vermutlich?',
+      review: 'Bis wann soll jemand draufschauen?',
+      reviewHint: 'Leer lassen, wenn niemand draufschauen soll.',
+      invalid: {
+        deadline: 'Bitte wähle einen Tag ab heute.',
+        plannedStart: 'Der Start liegt zwischen heute und der Deadline.',
+        reviewOn: 'Der Tag liegt zwischen Start und Deadline.',
+        estimateMinutes: 'Bitte gib ganze Minuten von 1 bis 6000 an.',
+      } as Record<string, string>,
+    },
+    saved: 'Vorhaben gespeichert. Es steht ab dem geplanten Start auf „Heute“.',
+    edited: 'Vorhaben gespeichert.',
+    card: {
+      labelDueToday: 'Vorhaben · Start heute',
+      labelDueSince: (day: string) => `Vorhaben · Start war für ${day} geplant`,
+      labelRunning: 'Vorhaben · läuft',
+      step: (text: string) => `Erster Schritt: ${text}`,
+      deadline: (days: number, date: string) =>
+        days > 1
+          ? `Deadline ${date} · noch ${days} Tage`
+          : days === 1
+            ? `Deadline ${date} · morgen`
+            : days === 0
+              ? `Deadline ${date} · heute`
+              : `Deadline war am ${date}`,
+      begin: 'Jetzt anfangen',
+      defer: 'Verschieben',
+      reasonQuestion: 'Was ist gerade unangenehm?',
+      reasons: {
+        UNCLEAR: 'Unklarheit',
+        BORING: 'Langeweile',
+        FEAR: 'Angst vor dem Ergebnis',
+        TOO_BIG: 'Zu groß',
+        NO_ENERGY: 'Keine Energie',
+        OTHER: 'Etwas anderes',
+      } as Record<string, string>,
+      aversionQuestion: 'Wie unangenehm fühlt sich der Start an?',
+      aversionScale: '0 = gar nicht · 4 = sehr. Beide Fragen sind freiwillig.',
+      stepLabel: 'Kleinster sichtbarer Schritt',
+      stepHint: 'Du kannst ihn jetzt noch kleiner machen.',
+      startNote: 'Für die nächsten 15 Minuten nur dieser Schritt. Das Gefühl darf dabei sein.',
+      started: 'Angefangen',
+      startedMessage: 'Festgehalten. Du hast angefangen.',
+      deferIntro: 'Bewusst verschieben zählt nicht als Aufschieben. Halte den Grund fest.',
+      deferTo: 'Neuer Start',
+      deferReason: 'Grund',
+      deferReasonHint: 'Z. B. „Input vom Kunden kommt erst Donnerstag“.',
+      deferSave: 'Start verschieben',
+      deferred: (date: string) => `Verschoben. Neuer Start: ${date}`,
+      deferErrors: {
+        DATE_INVALID: 'Der neue Start liegt zwischen heute und der Deadline und ist ein anderer Tag als bisher.',
+        REASON_REQUIRED: 'Bitte halte den Grund fest.',
+        REASON_TOO_LONG: 'Bitte höchstens 120 Zeichen.',
+      } as Record<string, string>,
+      lateQuestion: 'Der Start war später als geplant. Was soll beim nächsten ähnlichen Vorhaben anders sein?',
+      lateChoices: {
+        SMALLER_STEP: 'Schritt kleiner',
+        EARLIER_REVIEW: 'Früherer Review',
+        CLEARER_START: 'Genauerer Startzeitpunkt',
+        LESS_PARALLEL: 'Weniger parallel',
+        CLARIFY: 'Aufgabe klären',
+      } as Record<string, string>,
+      lateSkip: 'Überspringen',
+      lateSaved: 'Festgehalten.',
+      reviewUntil: (date: string) => `Review bis ${date}`,
+      reviewDone: 'Review eingeholt',
+      reviewDoneMessage: 'Review festgehalten.',
+      reviewGot: (date: string) => `Review eingeholt am ${date}`,
+      finish: 'Fertig',
+      actualMinutes: 'Wie viele fokussierte Minuten waren es ungefähr?',
+      actualMinutesInvalid: 'Bitte gib ganze Minuten von 1 bis 6000 an oder lass das Feld leer.',
+      finishSave: 'Abschließen',
+      finished: (buffer: number) =>
+        buffer > 1
+          ? `Abgeschlossen, ${buffer} Tage vor der Deadline.`
+          : buffer === 1
+            ? 'Abgeschlossen, einen Tag vor der Deadline.'
+            : buffer === 0
+              ? 'Abgeschlossen am Tag der Deadline.'
+              : buffer === -1
+                ? 'Abgeschlossen, einen Tag nach der Deadline.'
+                : `Abgeschlossen, ${-buffer} Tage nach der Deadline.`,
+    },
+    plan: {
+      phases: { UPCOMING: 'geplant', DUE: 'Start erreicht', RUNNING: 'läuft', CLOSED: 'abgeschlossen' } as Record<string, string>,
+      closedStatus: { DONE: 'abgeschlossen', DROPPED: 'nicht mehr nötig', OPEN: 'offen' } as Record<string, string>,
+      deadline: 'Deadline',
+      plannedStart: 'Geplanter Start',
+      startedOn: 'Begonnen',
+      finishedOn: 'Abgeschlossen',
+      firstStep: 'Erster Schritt',
+      estimate: 'Schätzung',
+      actual: 'Tatsächlich',
+      minutes: (n: number) => `${n} Minuten`,
+      review: 'Review',
+      reviewNone: 'nicht vorgesehen',
+      deferrals: 'Bewusst verschoben',
+      deferral: (from: string, to: string, reason: string) => `${from} → ${to}: ${reason}`,
+      edit: 'Bearbeiten',
+      calendar: 'Kalendereintrag',
+      calendarSaved: (file: string) => `Kalendereintrag erstellt: ${file}`,
+      calendarFailed: 'Der Kalendereintrag ließ sich nicht erstellen.',
+      drop: 'Nicht mehr nötig',
+      dropQuestion: 'Das Vorhaben wird beendet und zählt in keiner Kennzahl mit.',
+      dropConfirm: 'Ja, beenden',
+      dropped: 'Beendet. Das Vorhaben zählt nicht mit.',
+      delete: 'Löschen',
+      deleteQuestion: 'Löschen entfernt das Vorhaben von diesem Gerät. Das lässt sich nicht rückgängig machen.',
+      deleted: 'Gelöscht.',
+      closed: 'Abgeschlossene Vorhaben',
+    },
+    ics: {
+      summary: (title: string) => `Start: ${title}`,
+      description: (step: string, deadline: string) => `Erster Schritt: ${step}\nDeadline: ${deadline}`,
+    },
+    history: {
+      heading: 'Vorhaben',
+      window: 'letzte 12 Wochen',
+      empty: 'Sobald du ein Vorhaben beginnst, siehst du hier, wie nah Plan und Start beieinanderliegen.',
+      onTime: (k: number, n: number) =>
+        n === 1
+          ? k === 1
+            ? 'Ein Vorhaben begonnen, spätestens am geplanten Tag.'
+            : 'Ein Vorhaben begonnen, später als geplant.'
+          : `${k} von ${n} Vorhaben spätestens am geplanten Tag begonnen.`,
+      latency: 'Start gegenüber Plan',
+      latencyValue: (days: string, zero: boolean) => (zero ? 'am geplanten Tag' : `${days} Tage später`),
+      latencyTooFew: (n: number) => `Erscheint ab 3 begonnenen Vorhaben. Bisher: ${n}.`,
+      buffer: 'Puffer zur Deadline',
+      bufferValue: (days: string, sign: number) =>
+        sign > 0 ? `${days} Tage vorher fertig` : sign === 0 ? 'am Tag der Deadline fertig' : `${days} Tage danach fertig`,
+      factor: 'Dauer gegenüber Schätzung',
+      factorValue: (v: string) => `${v}-fach`,
+      finishedTooFew: (n: number) => `Erscheint ab 3 abgeschlossenen Vorhaben. Bisher: ${n}.`,
+      factorTooFew: (n: number) => `Erscheint ab 3 abgeschlossenen Vorhaben mit Minutenangabe. Bisher: ${n}.`,
+      reviews: 'Review',
+      reviewsValue: (k: number, n: number) => `${k} von ${n} rechtzeitig eingeholt`,
+      reviewsNone: 'Noch kein abgeschlossenes Vorhaben mit Review.',
+      deferrals: 'Bewusst verschoben',
+      deferralsValue: (n: number) => (n === 1 ? 'einmal, mit Grund' : `${n}-mal, mit Grund`),
+      waiting: (n: number) => (n === 1 ? 'Ein Vorhaben wartet seit dem geplanten Tag auf den Start.' : `${n} Vorhaben warten seit dem geplanten Tag auf den Start.`),
+      note: 'Alle Werte sind der mittlere Wert (Median) deiner Vorhaben. Sie beschreiben, sie bewerten nicht.',
+      weekProof: (k: number, n: number) =>
+        n === 1
+          ? k === 1
+            ? 'Diese Woche hast du ein Vorhaben spätestens am geplanten Tag begonnen.'
+            : 'Diese Woche hast du ein Vorhaben begonnen.'
+          : `Diese Woche hast du ${k} von ${n} Vorhaben spätestens am geplanten Tag begonnen.`,
+    },
   },
   backupCard: {
     label: 'Sicherung',

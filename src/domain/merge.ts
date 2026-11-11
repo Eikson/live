@@ -51,6 +51,8 @@ export function mergeSnapshots(local: Snapshot, incoming: Snapshot): Snapshot {
       ...r,
       entries: r.entries.filter((e) => living(e.habitId)),
     })),
+    // Vorhaben hängen an nichts anderem: je ID gewinnt der neuere Stand.
+    tasks: mergeById(local.tasks, incoming.tasks),
   };
 }
 

@@ -382,6 +382,10 @@ export const reviewScreen: Screen = async ({ ctx }) => {
     const nodes: (Node | null)[] = [
       heading(),
       h('p', { class: 'muted' }, t.intro(from, to)),
+      // Genau ein Belegsatz aus den Vorhaben der Woche; eine Beobachtung, kein Urteil.
+      view.taskProof
+        ? h('p', { class: 'task-proof', 'data-role': 'task-proof' }, de.tasks.history.weekProof(view.taskProof.onTime, view.taskProof.started))
+        : null,
       hintOpen ? hintBlock() : null,
       hintNote ? h('p', { class: 'status-line', role: 'status' }, hintNote) : null,
     ];

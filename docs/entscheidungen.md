@@ -271,3 +271,42 @@ Vor „Ersetzen“ speichert die App automatisch eine Sicherheitskopie des aktue
 - **Basis-Pfad:** Er kommt aus dem Namen des Repositorys, nicht fest aus dem Code. Ein Umbenennen braucht damit keine Code-Änderung. Daten hängen aber an der Adresse: Nach einem Umbenennen beginnt die App unter der neuen Adresse leer, vorher also exportieren.
 - **Prüfung vor dem Veröffentlichen:** Unit- und Integrationstests laufen im Workflow. Die E2E-Tests laufen lokal vor dem Push, auch die Variante mit Unterpfad (`LIVE_BASE=/live/`).
 - **Lokale Werkzeuge:** `.claude/` steht in `.gitignore`, damit es nicht im öffentlichen Repository landet.
+
+## E-058 Vorhaben als eigenes Objekt
+
+Aufschieben betrifft einmalige, unangenehme Aufgaben mit Deadline, nicht wiederkehrende Gewohnheiten. Vorhaben sind deshalb ein eigenes Objekt mit eigenem Store (`tasks`, Schema-Version 2, Exportformat 2) und zählen nicht zum Niveau. Grundlage ist der Recherchebericht zu Prokrastination: Die App soll am Übergang von „ich sollte“ zu „ich habe angefangen“ messen und helfen, statt abends pauschal zu fragen.
+
+- Höchstens drei offene Vorhaben (`appConfig.tasks.maxOpen`), damit keine To-do-Liste entsteht.
+- Pflichtangaben: Titel, Deadline, geplanter Start, kleinster sichtbarer Schritt, geschätzte Minuten. Freiwillig: Uhrzeit (nur für den Kalendereintrag) und ein Tag, bis zu dem jemand draufschauen soll.
+- Gerechnet wird in Kalendertagen, wie überall in der App.
+
+## E-059 Startkarte auf „Heute“
+
+Ab dem geplanten Start steht das Vorhaben auf „Heute“, vor den Gewohnheiten. Kommende Vorhaben stehen nur im Plan. „Jetzt anfangen“ klappt drei Dinge auf: was gerade unangenehm ist (sechs Gründe), wie stark (0 bis 4) und der kleinste sichtbare Schritt, der sich dabei verkleinern lässt. Beide Fragen sind freiwillig. „Angefangen“ speichert den Tag des Starts; ein zweiter Tipp ändert nichts.
+
+Eine feste Minutenzahl gibt die App nicht vor. Der Text nennt 15 Minuten als Startfenster; einen Timer gibt es nicht, weil keine bestimmte Dauer belegt ist.
+
+## E-060 Bewusst verschieben
+
+„Verschieben“ verlangt einen neuen Tag (ab heute, bis zur Deadline) und einen Grund. Der neue Tag ist danach der geplante Start, die Startlatenz zählt ab ihm. So trennt die App absichtliches Verschieben von Aufschieben. Die Verschiebungen bleiben mit Grund am Vorhaben stehen und werden im Verlauf gezählt. Ein vorgesehener Review, der vor dem neuen Start läge, rückt auf den Starttag.
+
+Im Bearbeiten-Formular lässt sich der geplante Start nur ändern, solange er noch nicht erreicht ist. Danach geht es nur über „Verschieben“, sonst ließe sich die Messung ohne Grund zurücksetzen.
+
+## E-061 Später Start, Review, Abschluss
+
+- **Später Start:** Liegt der Start nach dem geplanten Tag, fragt die Karte einmal, was beim nächsten ähnlichen Vorhaben anders sein soll (Schritt kleiner, früherer Review, genauerer Startzeitpunkt, weniger parallel, Aufgabe klären). „Überspringen“ beantwortet die Frage ebenfalls. Die Wahl wird gespeichert, löst aber nichts aus.
+- **Review:** „Review eingeholt“ hält den Tag fest. Rechtzeitig heißt: spätestens am vorgesehenen Tag.
+- **Abschluss:** „Fertig“ fragt freiwillig nach den tatsächlichen Minuten. Wurde der Start nie eingetragen, gilt der Tag des Abschlusses auch als Start.
+- **Nicht mehr nötig:** beendet das Vorhaben; es zählt in keiner Kennzahl mit. Löschen setzt eine Löschmarkierung.
+
+## E-062 Kennzahlen und Belegsatz
+
+Der Verlauf zeigt für die letzten 84 Tage (`metricsDays`): Start gegenüber Plan, Puffer zur Deadline, Dauer gegenüber Schätzung, rechtzeitige Reviews und die Zahl bewusster Verschiebungen. Die ersten drei sind Mediane und erscheinen erst ab drei Werten (`minForMedian`); vorher steht dort, wie viele es bisher sind. Ein früherer Start als geplant zählt als null Tage. Maßgeblich ist der Tag des Starts bzw. des Abschlusses.
+
+Der Wochenrückblick und der Verlauf nennen genau einen Belegsatz: wie viele Vorhaben der Woche begonnen wurden und wie viele davon spätestens am geplanten Tag. Es gibt keine Prozentwerte, keine Serien und keine Bewertung.
+
+## E-063 Kalendereintrag statt Benachrichtigung
+
+Live schickt weiterhin keine Benachrichtigungen. Für den geplanten Start erstellt der Plan auf Wunsch eine `.ics`-Datei (ganztägig oder mit Uhrzeit über 15 Minuten), die sich in den eigenen Kalender legen lässt. Die Datei entsteht auf dem Gerät. Nach einem Verschieben muss der Eintrag neu erstellt werden; die Fassung zählt mit (`SEQUENCE`), ob der Kalender den alten Termin ersetzt, hängt vom Kalender ab.
+
+Nicht gebaut, bewusst: Zwischentermine, Timer, Vorher-Nachher-Schätzung des Gefühls, vierteljährlicher Fragebogen. Die Abendfrage „Etwas Wichtiges aufgeschoben?“ bleibt ein Gegen-Habit und lässt sich wie bisher im Plan pausieren oder archivieren.

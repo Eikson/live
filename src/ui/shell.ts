@@ -22,6 +22,8 @@ const TAB_OF: Partial<Record<Route, Route>> = {
   'gewohnheit-neu': 'plan',
   'ziel-bearbeiten': 'plan',
   'gewohnheit-bearbeiten': 'plan',
+  'vorhaben-neu': 'plan',
+  'vorhaben-bearbeiten': 'plan',
   wochenrueckblick: 'heute',
   daten: 'einstellungen',
   gespeichert: 'einstellungen',

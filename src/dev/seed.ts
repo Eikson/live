@@ -209,6 +209,7 @@ export function buildSeed(today: LocalDate, variant: SeedVariant): Snapshot {
     dayRecords,
     avoidanceItems: [],
     weeklyReviews: [],
+    tasks: [],
   };
 }
 

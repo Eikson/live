@@ -33,9 +33,9 @@ function codeOf(fn: () => unknown): string | undefined {
 describe('Exportformat', () => {
   it('enthält Format, Version, Zeitpunkt, App-Version und alle Stores', () => {
     const file = JSON.parse(JSON.stringify(backup())) as Record<string, unknown>;
-    expect(file).toMatchObject({ format: 'live-backup', formatVersion: 1, exportedAt: NOW, appVersion: '0.1.0' });
+    expect(file).toMatchObject({ format: 'live-backup', formatVersion: 2, exportedAt: NOW, appVersion: '0.1.0' });
     expect(Object.keys(file.data as object).sort()).toEqual(
-      ['avoidanceItems', 'checkIns', 'dayRecords', 'goals', 'habitEvents', 'habits', 'preferences', 'weeklyReviews'].sort(),
+      ['avoidanceItems', 'checkIns', 'dayRecords', 'goals', 'habitEvents', 'habits', 'preferences', 'tasks', 'weeklyReviews'].sort(),
     );
   });
 
@@ -51,6 +51,7 @@ describe('Exportformat', () => {
       goals: 1,
       habits: 1,
       checkIns: 2,
+      tasks: 0,
       from: '2026-01-01',
       to: '2026-01-03',
     });
@@ -68,26 +69,36 @@ describe('Importprüfung', () => {
   });
 
   it('lehnt neuere Formatversionen ab', () => {
-    const file = { ...clone(backup()), formatVersion: 2 };
+    const file = { ...clone(backup()), formatVersion: 3 };
     expect(codeOf(() => parseBackupObject(file))).toBe('NEWER_VERSION');
   });
 
   it('migriert ältere Versionen schrittweise', () => {
-    // Angenommen, Version 2 hat „goals“ umbenannt: eine alte v1-Datei wird beim Lesen angepasst.
+    // Angenommen, Version 3 hat „goals“ umbenannt: eine ältere Datei wird beim Lesen angepasst.
     const old = clone(backup()) as unknown as Record<string, unknown>;
     const data = old.data as Record<string, unknown>;
     const v0 = { ...old, data: { ...data, ziele: data.goals, goals: undefined } };
     const migrations = {
-      2: (f: Record<string, unknown>) => {
+      3: (f: Record<string, unknown>) => {
         const d = f.data as Record<string, unknown>;
         return { ...f, data: { ...d, goals: d.ziele } };
       },
     };
-    const parsed = parseBackupObject(v0, { currentVersion: 2, migrations });
-    expect(parsed.kind === 'plain' && parsed.backup.formatVersion).toBe(2);
+    const parsed = parseBackupObject(v0, { currentVersion: 3, migrations });
+    expect(parsed.kind === 'plain' && parsed.backup.formatVersion).toBe(3);
     expect(parsed.kind === 'plain' && parsed.backup.data.goals).toEqual(sampleSnapshot().goals);
     // Fehlt eine Migration, wird die Datei nicht halb gelesen.
-    expect(codeOf(() => parseBackupObject(v0, { currentVersion: 2, migrations: {} }))).toBe('INVALID');
+    expect(codeOf(() => parseBackupObject(v0, { currentVersion: 3, migrations: {} }))).toBe('INVALID');
+  });
+
+  it('liest Dateien der Version 1 ohne Vorhaben und ergänzt eine leere Liste', () => {
+    const old = clone(backup()) as unknown as Record<string, unknown>;
+    const { tasks: _tasks, ...data } = old.data as Record<string, unknown>;
+    const parsed = parseBackupObject({ ...old, formatVersion: 1, data });
+    expect(parsed.kind === 'plain' && parsed.backup.formatVersion).toBe(2);
+    expect(parsed.kind === 'plain' && parsed.backup.data.tasks).toEqual([]);
+    // In Version 2 gehört der Store dazu: fehlt er, ist die Datei ungültig.
+    expect(codeOf(() => parseBackupObject({ ...old, data }))).toBe('INVALID');
   });
 
   it('lehnt ungültige Daten ab', () => {

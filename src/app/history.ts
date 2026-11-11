@@ -2,13 +2,14 @@ import { addDays, dateRange, maxDate, minDate, startOfWeek, type LocalDate } fro
 import { compareWindow, windowMean, type Comparison, type DailyValue } from '../domain/scoring/comparison';
 import { isSufficient, windowAverage, type WindowAverage } from '../domain/scoring/corridor';
 import { scoreValue } from '../domain/scoring/fulfillment';
-import type { CheckIn, CueConsistency, Habit, HabitEvent, HabitKind, WeeklyReview } from '../domain/types';
+import type { CheckIn, CueConsistency, Habit, HabitEvent, HabitKind, Task, WeeklyReview } from '../domain/types';
 import { today as clockToday } from '../platform/clock';
 import type { AppContext } from './context';
 import { derive, type Derived } from './derived';
 import { reviewValuesOf } from './review';
 import { scoringContext } from './scoring';
 import { automaticityMean } from '../domain/review';
+import { taskMetrics, weekProof, type TaskMetrics } from '../domain/task';
 
 /** Zeitraum der Diagramme: die letzten 12 Wochen. */
 export const CHART_DAYS = 84;
@@ -144,6 +145,16 @@ export interface HistoryView {
   level: LevelView;
   wellbeing: WellbeingView;
   month: MonthView;
+  tasks: TaskHistoryView;
+}
+
+/** Kennzahlen der Vorhaben; getrennt vom Niveau und nie gespeichert. */
+export interface TaskHistoryView {
+  /** Es gibt mindestens ein Vorhaben, das nicht verworfen wurde. */
+  hasTasks: boolean;
+  metrics: TaskMetrics;
+  /** Beleg für die laufende Woche (Montag bis heute) */
+  week?: { started: number; onTime: number };
 }
 
 const PLAN_EVENTS: ReadonlySet<HabitEvent['type']> = new Set([
@@ -417,6 +428,15 @@ function monthView(habits: readonly Habit[], allEvents: readonly HabitEvent[], r
   };
 }
 
+function taskHistory(tasks: readonly Task[], today: LocalDate): TaskHistoryView {
+  const week = weekProof(tasks, startOfWeek(today), today);
+  return {
+    hasTasks: tasks.some((t) => t.status !== 'DROPPED'),
+    metrics: taskMetrics(tasks, today),
+    ...(week ? { week } : {}),
+  };
+}
+
 /**
  * Sicht für „Verlauf“: Niveau mit Korridor, Kalender, Ereignisse und Befinden.
  * Alles wird beim Laden aus den Rohdaten berechnet und nie gespeichert.
@@ -437,5 +457,6 @@ export async function loadHistoryView(ctx: AppContext, month?: string): Promise<
     level: levelView(scoring, comparing, today, first, markers),
     wellbeing: wellbeingView(scoring.wellbeingOn, data.dayRecords, today),
     month: monthView(habits, data.habitEvents, data.weeklyReviews, derived, today, month),
+    tasks: taskHistory(data.tasks, today),
   };
 }

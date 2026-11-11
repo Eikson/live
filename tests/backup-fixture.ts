@@ -25,5 +25,6 @@ export function sampleSnapshot(): Snapshot {
         updatedAt: NOW,
       },
     ],
+    tasks: [],
   };
 }

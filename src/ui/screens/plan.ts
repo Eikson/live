@@ -1,20 +1,26 @@
 import { loadPlanView, type PlanHabit, type PlanView } from '../../app/plan';
 import { activateHabit, changeHabitStatus, deleteGoal, deleteHabit } from '../../app/planning';
+import { deleteTask, dropTask } from '../../app/tasks';
 import { appConfig } from '../../domain/app-config';
+import { icsFileName, taskIcs } from '../../domain/ics';
 import { formatCopingPlan, formatIntention } from '../../domain/planning';
+import type { Task } from '../../domain/types';
 import { de } from '../../i18n/de';
 import { h, type Child } from '../dom';
-import { formatCue, formatSchedule } from '../format';
+import { downloadText } from '../../platform/files';
+import { formatCue, formatDate, formatDayMonth, formatSchedule } from '../format';
 import { routeHref } from '../router';
 import type { Screen } from '../screen';
 
 type Status = { text: string; error?: boolean };
 
 type HabitAction = 'ACTIVATE' | 'PAUSE' | 'RESUME' | 'ARCHIVE' | 'DELETE';
+type TaskAction = 'CALENDAR' | 'DROP' | 'DELETE';
 
 interface Handlers {
   habit(action: HabitAction, habitId: string): void;
   deleteGoal(goalId: string): void;
+  task(action: TaskAction, task: Task): void;
 }
 
 /** Eine Aktion an einem Habit oder Ziel; der Name des Objekts steht für Screenreader dabei. */
@@ -34,6 +40,8 @@ const MESSAGES: Record<string, string> = {
   unveraendert: de.plan.unchanged,
   ziel: de.plan.goalSaved,
   'gegen-habit': de.plan.counterSaved,
+  vorhaben: de.tasks.saved,
+  'vorhaben-bearbeitet': de.tasks.edited,
 };
 
 function actionBar(specs: ActionSpec[], extra: Child[] = []): HTMLElement {
@@ -164,11 +172,128 @@ function habitItem(item: PlanHabit, view: PlanView, on: Handlers, opts: { showGo
   );
 }
 
+/** Kalendereintrag für den geplanten Start als Datei; Live selbst erinnert nicht. */
+function downloadCalendarEntry(task: Task, createdAt: string): string {
+  const file = icsFileName(task.title);
+  const text = taskIcs(task, createdAt, {
+    summary: de.tasks.ics.summary,
+    description: (x) => de.tasks.ics.description(x.firstStep, formatDate(x.deadline)),
+  });
+  downloadText(file, text, 'text/calendar');
+  return file;
+}
+
+function taskFacts(task: Task): [string, Child | Child[]][] {
+  const t = de.tasks.plan;
+  const rows: [string, Child | Child[]][] = [
+    [t.deadline, formatDate(task.deadline)],
+    [t.plannedStart, task.plannedStartTime ? `${formatDate(task.plannedStart)}, ${task.plannedStartTime} Uhr` : formatDate(task.plannedStart)],
+  ];
+  if (task.startedOn) rows.push([t.startedOn, formatDate(task.startedOn)]);
+  if (task.finishedOn) rows.push([t.finishedOn, formatDate(task.finishedOn)]);
+  rows.push([t.firstStep, task.firstStep], [t.estimate, t.minutes(task.estimateMinutes)]);
+  if (task.actualMinutes !== undefined) rows.push([t.actual, t.minutes(task.actualMinutes)]);
+  rows.push([
+    t.review,
+    task.reviewOn === undefined
+      ? t.reviewNone
+      : task.reviewDoneOn !== undefined
+        ? de.tasks.card.reviewGot(formatDate(task.reviewDoneOn))
+        : de.tasks.card.reviewUntil(formatDate(task.reviewOn)),
+  ]);
+  if (task.deferrals.length > 0) {
+    rows.push([
+      t.deferrals,
+      task.deferrals.map((d) => h('span', { class: 'fact-line' }, t.deferral(formatDayMonth(d.from), formatDayMonth(d.to), d.reason))),
+    ]);
+  }
+  return rows;
+}
+
+function taskEntry(task: Task, meta: string, actions: HTMLElement, open: boolean): HTMLElement {
+  return h(
+    'li',
+    { 'data-task': task.id },
+    h(
+      'details',
+      { class: 'habit-item', open },
+      h('summary', null, h('span', { class: 'habit-item__title' }, task.title), h('span', { class: 'habit-item__meta' }, meta)),
+      h(
+        'dl',
+        { class: 'facts' },
+        taskFacts(task).flatMap(([k, v]) => [h('dt', null, k), h('dd', null, ...(Array.isArray(v) ? v : [v]))]),
+      ),
+      actions,
+    ),
+  );
+}
+
+function tasksSection(view: PlanView, highlight: string | null, on: Handlers): HTMLElement {
+  const t = de.tasks;
+  const { open, closed, canAdd } = view.tasks;
+  const titleId = 'plan-tasks-title';
+  const remove = (task: Task): ActionSpec => ({
+    key: 'delete-task',
+    label: t.plan.delete,
+    target: task.title,
+    run: () => on.task('DELETE', task),
+    confirm: { question: t.plan.deleteQuestion, yes: de.plan.confirmDelete },
+  });
+  return h(
+    'section',
+    { class: 'card tasks', 'aria-labelledby': titleId, 'data-role': 'tasks' },
+    h('h2', { id: titleId }, t.heading),
+    h('p', { class: 'muted' }, t.intro),
+    open.length > 0
+      ? h(
+          'ul',
+          { class: 'habit-list' },
+          open.map(({ task, phase }) =>
+            taskEntry(
+              task,
+              `${t.plan.phases[phase]} · ${t.plan.deadline} ${formatDayMonth(task.deadline)}`,
+              actionBar([
+                { key: 'edit-task', label: t.plan.edit, target: task.title, href: routeHref('vorhaben-bearbeiten', { id: task.id }) },
+                ...(task.startedOn === undefined
+                  ? [{ key: 'calendar', label: t.plan.calendar, target: task.title, run: () => on.task('CALENDAR', task) }]
+                  : []),
+                {
+                  key: 'drop-task',
+                  label: t.plan.drop,
+                  target: task.title,
+                  run: () => on.task('DROP', task),
+                  confirm: { question: t.plan.dropQuestion, yes: t.plan.dropConfirm },
+                },
+                remove(task),
+              ]),
+              task.id === highlight,
+            ),
+          ),
+        )
+      : h('p', { class: 'muted' }, t.empty),
+    canAdd
+      ? h('a', { class: 'button quiet add-link', href: routeHref('vorhaben-neu'), 'aria-label': t.addLabel }, t.add)
+      : h('p', { class: 'hint', 'data-role': 'task-limit' }, t.limit(appConfig.tasks.maxOpen)),
+    closed.length > 0
+      ? h(
+          'details',
+          { class: 'plan-group task-closed', 'data-group': 'tasks-closed' },
+          h('summary', null, `${t.plan.closed} (${closed.length})`),
+          h(
+            'ul',
+            { class: 'habit-list' },
+            closed.map((task) => taskEntry(task, t.plan.closedStatus[task.status]!, actionBar([remove(task)]), false)),
+          ),
+        )
+      : null,
+  );
+}
+
 export const planScreen: Screen = async ({ ctx, params }) => {
   const section = h('section', { class: 'screen' });
   const saved = params.get('gespeichert');
   const notice = params.get('meldung');
-  let highlight = saved;
+  let highlight = saved ?? params.get('vorhaben');
   let status: Status | undefined = notice && MESSAGES[notice] ? { text: MESSAGES[notice] } : undefined;
   if (saved || notice) {
     // Die Meldung gilt nur für diesen Aufruf; die Adresse wird ohne Parameter ersetzt.
@@ -224,6 +349,23 @@ export const planScreen: Screen = async ({ ctx, params }) => {
     },
     deleteGoal(goalId) {
       void perform(async () => ((await deleteGoal(ctx, goalId)).ok ? { text: de.plan.goalDeleted } : failed));
+    },
+    task(action, task) {
+      highlight = task.id;
+      void perform(async () => {
+        switch (action) {
+          case 'CALENDAR':
+            try {
+              return { text: de.tasks.plan.calendarSaved(downloadCalendarEntry(task, ctx.clock.now().toISOString())) };
+            } catch {
+              return { text: de.tasks.plan.calendarFailed, error: true };
+            }
+          case 'DROP':
+            return (await dropTask(ctx, task.id)).ok ? { text: de.tasks.plan.dropped } : failed;
+          case 'DELETE':
+            return (await deleteTask(ctx, task.id)).ok ? { text: de.tasks.plan.deleted } : failed;
+        }
+      });
     },
   };
 
@@ -290,6 +432,8 @@ function build(view: PlanView, highlight: string | null, status: Status | undefi
       ),
     );
   }
+
+  nodes.push(tasksSection(view, highlight, on));
 
   const countersTitle = 'plan-counters-title';
   nodes.push(

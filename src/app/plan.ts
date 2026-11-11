@@ -5,6 +5,7 @@ import { today } from '../platform/clock';
 import type { AppContext } from './context';
 import { availablePredefined } from './counter-habits';
 import { derive } from './derived';
+import { taskListView, type TaskListView } from './tasks';
 
 export type HabitBadge = 'BUILDING' | 'INTEGRATED' | 'DRAFT' | 'PAUSED' | 'ARCHIVED';
 
@@ -31,6 +32,8 @@ export interface PlanView {
   counterHint: boolean;
   buildingCount: number;
   hasFreeSlot: boolean;
+  /** Vorhaben: offene zuerst nach Dringlichkeit, dazu abgeschlossene. */
+  tasks: TaskListView;
 }
 
 const byCreated = (a: { createdAt: string }, b: { createdAt: string }) => a.createdAt.localeCompare(b.createdAt);
@@ -74,6 +77,7 @@ export async function loadPlanView(ctx: AppContext): Promise<PlanView> {
     counterHint: needsCounterHint(counters.length),
     buildingCount: derived.buildingCount,
     hasFreeSlot: derived.buildingCount < appConfig.maxBuildingHabits,
+    tasks: taskListView(data.tasks, today(ctx.clock)),
   };
 }
 

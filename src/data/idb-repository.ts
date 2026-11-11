@@ -19,6 +19,7 @@ function storesOf(changes: ChangeSet): StoreName[] {
   if (changes.dayRecords?.length || changes.removeDayRecords?.length) stores.add('dayRecords');
   if (changes.avoidanceItems?.length) stores.add('avoidanceItems');
   if (changes.weeklyReviews?.length || changes.removeWeeklyReviews?.length) stores.add('weeklyReviews');
+  if (changes.tasks?.length) stores.add('tasks');
   return [...stores];
 }
 
@@ -78,7 +79,7 @@ export class IdbRepository implements LiveRepository {
   }
 
   private async readAll(tx: IDBPTransaction<LiveDB, StoreName[], 'readonly' | 'readwrite'>): Promise<Snapshot> {
-    const [preferences, goals, habits, habitEvents, checkIns, dayRecords, avoidanceItems, weeklyReviews] =
+    const [preferences, goals, habits, habitEvents, checkIns, dayRecords, avoidanceItems, weeklyReviews, tasks] =
       await Promise.all([
         tx.objectStore('preferences').get('preferences'),
         tx.objectStore('goals').getAll(),
@@ -88,6 +89,7 @@ export class IdbRepository implements LiveRepository {
         tx.objectStore('dayRecords').getAll(),
         tx.objectStore('avoidanceItems').getAll(),
         tx.objectStore('weeklyReviews').getAll(),
+        tx.objectStore('tasks').getAll(),
       ]);
     return {
       preferences: withPreferenceDefaults(preferences, this.nowIso()),
@@ -98,6 +100,7 @@ export class IdbRepository implements LiveRepository {
       dayRecords,
       avoidanceItems,
       weeklyReviews,
+      tasks,
     };
   }
 
@@ -109,6 +112,7 @@ export class IdbRepository implements LiveRepository {
       habits: live(s.habits),
       checkIns: live(s.checkIns),
       avoidanceItems: live(s.avoidanceItems),
+      tasks: live(s.tasks),
     };
   }
 
@@ -147,6 +151,7 @@ export class IdbRepository implements LiveRepository {
     for (const a of changes.avoidanceItems ?? []) ops.push(tx.objectStore('avoidanceItems').put(a));
     for (const r of changes.weeklyReviews ?? []) ops.push(tx.objectStore('weeklyReviews').put(r));
     for (const id of changes.removeWeeklyReviews ?? []) ops.push(tx.objectStore('weeklyReviews').delete(id));
+    for (const t of changes.tasks ?? []) ops.push(tx.objectStore('tasks').put(t));
     await runAtomically(tx, ops);
   }
 
@@ -225,6 +230,7 @@ function writeAll(tx: IDBPTransaction<LiveDB, StoreName[], 'readwrite'>, snapsho
   for (const d of snapshot.dayRecords) ops.push(tx.objectStore('dayRecords').put(d));
   for (const a of snapshot.avoidanceItems) ops.push(tx.objectStore('avoidanceItems').put(a));
   for (const r of snapshot.weeklyReviews) ops.push(tx.objectStore('weeklyReviews').put(r));
+  for (const t of snapshot.tasks) ops.push(tx.objectStore('tasks').put(t));
   return ops;
 }
 

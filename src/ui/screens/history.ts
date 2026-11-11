@@ -429,6 +429,42 @@ function calendarSection(month: MonthView): HTMLElement {
   );
 }
 
+/** Kennzahlen der Vorhaben: Start gegenüber Plan, Puffer, Schätzung, Review. Keine Bewertung. */
+function tasksSection(view: HistoryView): HTMLElement | null {
+  const tt = de.tasks.history;
+  const { hasTasks, metrics: m, week } = view.tasks;
+  if (!hasTasks) return null;
+  const days = (v: number) => (Number.isInteger(v) ? String(Math.abs(v)) : formatDecimal(Math.abs(v)));
+  const rows: [string, string][] = [
+    [
+      tt.latency,
+      m.latency.median === undefined ? tt.latencyTooFew(m.latency.count) : tt.latencyValue(days(m.latency.median), m.latency.median === 0),
+    ],
+    [
+      tt.buffer,
+      m.buffer.median === undefined ? tt.finishedTooFew(m.buffer.count) : tt.bufferValue(days(m.buffer.median), Math.sign(m.buffer.median)),
+    ],
+    [
+      tt.factor,
+      m.estimateFactor.median === undefined ? tt.factorTooFew(m.estimateFactor.count) : tt.factorValue(formatDecimal(m.estimateFactor.median)),
+    ],
+    [tt.reviews, m.reviews.planned === 0 ? tt.reviewsNone : tt.reviewsValue(m.reviews.timely, m.reviews.planned)],
+  ];
+  if (m.deferrals > 0) rows.push([tt.deferrals, tt.deferralsValue(m.deferrals)]);
+  return h(
+    'section',
+    { class: 'card history-block', 'aria-labelledby': 'tasks-heading', 'data-role': 'task-metrics' },
+    h('h2', { id: 'tasks-heading' }, tt.heading),
+    week ? h('p', { class: 'task-proof', 'data-role': 'task-proof' }, tt.weekProof(week.onTime, week.started)) : null,
+    m.started > 0
+      ? h('p', { 'data-role': 'task-on-time' }, tt.onTime(m.onTime, m.started), ' ', h('span', { class: 'muted' }, `(${tt.window})`))
+      : h('p', { class: 'muted' }, tt.empty),
+    h('dl', { class: 'task-metrics' }, rows.flatMap(([k, v]) => [h('dt', null, k), h('dd', null, v)])),
+    m.waiting > 0 ? h('p', { class: 'muted', 'data-role': 'task-waiting' }, tt.waiting(m.waiting)) : null,
+    h('p', { class: 'hint' }, tt.note),
+  );
+}
+
 export const historyScreen: Screen = async ({ ctx, params }) => {
   const view = await loadHistoryView(ctx, params.get('monat') ?? undefined);
   fitChartWidth();
@@ -439,6 +475,7 @@ export const historyScreen: Screen = async ({ ctx, params }) => {
       { class: 'screen history' },
       h('h1', { tabindex: '-1' }, t.heading),
       h('div', { class: 'card empty', 'data-role': 'history-empty' }, h('p', null, t.empty), h('a', { class: 'button primary', href: routeHref('plan') }, t.toPlan)),
+      tasksSection(view),
       info,
     );
   }
@@ -447,6 +484,7 @@ export const historyScreen: Screen = async ({ ctx, params }) => {
     { class: 'screen history' },
     h('h1', { tabindex: '-1' }, t.heading),
     levelSection(view),
+    tasksSection(view),
     calendarSection(view.month),
     wellbeingSection(view),
     info,

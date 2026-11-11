@@ -166,6 +166,51 @@ export interface WeeklyReview {
   updatedAt: IsoTimestamp;
 }
 
+export type TaskStatus = 'OPEN' | 'DONE' | 'DROPPED';
+export type AversionReason = 'UNCLEAR' | 'BORING' | 'FEAR' | 'TOO_BIG' | 'NO_ENERGY' | 'OTHER';
+export type LateStartChoice = 'SMALLER_STEP' | 'EARLIER_REVIEW' | 'CLEARER_START' | 'LESS_PARALLEL' | 'CLARIFY' | 'SKIPPED';
+
+/** Bewusstes Verschieben des geplanten Starts, immer mit Grund. */
+export interface TaskDeferral {
+  at: IsoTimestamp;
+  from: LocalDate;
+  to: LocalDate;
+  reason: string;
+}
+
+/**
+ * Einmaliges Vorhaben mit Deadline. Gemessen wird die Lücke zwischen geplantem und
+ * tatsächlichem Start; der Habit-Score bleibt davon unberührt.
+ */
+export interface Task {
+  id: string;
+  title: string;
+  /** Tag, an dem das Ergebnis bei jemand anderem sein soll */
+  deadline: LocalDate;
+  plannedStart: LocalDate;
+  /** `HH:MM`, nur für den Kalendereintrag */
+  plannedStartTime?: string;
+  /** Kleinster sichtbarer Schritt */
+  firstStep: string;
+  estimateMinutes: number;
+  /** Bis wann jemand draufschauen soll */
+  reviewOn?: LocalDate;
+  reviewDoneOn?: LocalDate;
+  status: TaskStatus;
+  startedOn?: LocalDate;
+  /** 0 (gar nicht) bis 4 (sehr) unangenehm, beim Start angegeben */
+  startAversion?: number;
+  startReason?: AversionReason;
+  /** Antwort auf die Frage nach einem späten Start */
+  lateStartChoice?: LateStartChoice;
+  deferrals: TaskDeferral[];
+  finishedOn?: LocalDate;
+  actualMinutes?: number;
+  createdOn: LocalDate;
+  createdAt: IsoTimestamp;
+  updatedAt: IsoTimestamp;
+}
+
 /** Ein löschbarer Datensatz ist entweder lebendig oder eine Löschmarkierung. */
 export type Stored<T> = T | Tombstone;
 

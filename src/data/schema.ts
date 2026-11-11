@@ -9,12 +9,13 @@ import type {
   HabitEvent,
   Preferences,
   Stored,
+  Task,
   WeeklyReview,
 } from '../domain/types';
 
 export const DB_NAME = 'live';
 /** Aktuelle Schema-Version. Jede Erhöhung braucht eine Migration in `migrations.ts`. */
-export const DB_VERSION = 1;
+export const DB_VERSION = 2;
 
 export interface MetaRecord {
   key: 'dbVersion' | 'exportFormatVersion';
@@ -34,6 +35,7 @@ export interface LiveDB extends DBSchema {
   dayRecords: { key: LocalDate; value: DayRecord };
   avoidanceItems: { key: string; value: Stored<AvoidanceItem> };
   weeklyReviews: { key: string; value: WeeklyReview; indexes: { weekStart: LocalDate } };
+  tasks: { key: string; value: Stored<Task> };
   meta: { key: string; value: MetaRecord };
 }
 
@@ -46,6 +48,7 @@ export type StoreName =
   | 'dayRecords'
   | 'avoidanceItems'
   | 'weeklyReviews'
+  | 'tasks'
   | 'meta';
 
 export const ALL_STORES: StoreName[] = [
@@ -57,5 +60,6 @@ export const ALL_STORES: StoreName[] = [
   'dayRecords',
   'avoidanceItems',
   'weeklyReviews',
+  'tasks',
   'meta',
 ];

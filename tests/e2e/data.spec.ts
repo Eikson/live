@@ -55,7 +55,7 @@ test('Export als Datei, dann Ersetzen mit Vorschau und Sicherheitskopie', async 
 
   const file = await exportFile(page);
   expect(file.name).toBe('live-backup-2026-11-05.json');
-  expect(JSON.parse(file.text)).toMatchObject({ format: 'live-backup', formatVersion: 1 });
+  expect(JSON.parse(file.text)).toMatchObject({ format: 'live-backup', formatVersion: 2 });
   await expect(status(page)).toHaveText('Export erstellt: live-backup-2026-11-05.json');
   await expect(exportBox(page).locator('[data-role="last-backup"]')).toHaveText('Letzter Export: 5. Nov. 2026');
 

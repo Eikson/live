@@ -8,6 +8,8 @@ export const appConfig = {
   eveningCardFrom: '18:00',
   backupReminderDays: 14,
   counterHabitSoftHintAbove: 5, // ab hier Hinweis: Abend-Check-in wird länger als 30 s
+  /** Vorhaben: höchstens so viele offen; Kennzahlen über so viele Tage und erst ab so vielen Werten. */
+  tasks: { maxOpen: 3, metricsDays: 84, minForMedian: 3, startWindowMinutes: 15, maxMinutes: 6000 },
   import: { maxFileBytes: 20 * 1024 * 1024 },
   /** Längenbegrenzungen für Nutzertexte (Zeichen). */
   textLimits: { short: 120, long: 500, note: 1000 },

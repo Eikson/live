@@ -105,7 +105,8 @@ describe('IdbRepository', () => {
 });
 
 describe('Migrationen', () => {
-  const v2: Migration = async (_db, tx) => {
+  // Die App steht bei Schema-Version 2 (Vorhaben); die künstliche Migration ist deshalb Version 3.
+  const v3: Migration = async (_db, tx) => {
     // Künstliche Migration: neues Feld für alle Ziele.
     const store = tx.objectStore('goals');
     let cursor = await store.openCursor();
@@ -115,20 +116,20 @@ describe('Migrationen', () => {
     }
   };
 
-  it('hebt v1 auf eine künstliche v2 und behält die Daten', async () => {
+  it('hebt den Bestand auf eine künstliche v3 und behält die Daten', async () => {
     const name = `mig-${++dbSeq}`;
     const r1 = await IdbRepository.open({ name });
     await r1.commit({ goals: [goal('g1')] });
     r1.close();
 
-    const r2 = await repo(name, { version: 2, migrations: { ...migrations, 2: v2 } });
+    const r2 = await repo(name, { version: 3, migrations: { ...migrations, 3: v3 } });
     const goals = (await r2.loadSnapshot()).goals as (Goal & { migrated?: boolean })[];
     expect(goals).toEqual([expect.objectContaining({ id: 'g1', migrated: true })]);
     r2.close();
 
     const raw = await openDB(name);
-    expect(raw.version).toBe(2);
-    expect(await raw.get('meta', 'dbVersion')).toEqual({ key: 'dbVersion', value: 2 });
+    expect(raw.version).toBe(3);
+    expect(await raw.get('meta', 'dbVersion')).toEqual({ key: 'dbVersion', value: 3 });
     raw.close();
   });
 
@@ -141,18 +142,35 @@ describe('Migrationen', () => {
     const broken: Migration = () => {
       throw new Error('kaputt');
     };
-    await expect(IdbRepository.open({ name, version: 2, migrations: { ...migrations, 2: broken } })).rejects.toThrow();
+    await expect(IdbRepository.open({ name, version: 3, migrations: { ...migrations, 3: broken } })).rejects.toThrow();
 
     const again = await repo(name);
     expect((await again.loadLive()).goals).toHaveLength(1);
     again.close();
     const raw = await openDB(name);
-    expect(raw.version).toBe(1);
+    expect(raw.version).toBe(2);
     raw.close();
   });
 
   it('verweigert das Öffnen, wenn eine Migration fehlt', async () => {
-    await expect(IdbRepository.open({ name: `mig-${++dbSeq}`, version: 3 })).rejects.toThrow('Migration 2 fehlt.');
+    await expect(IdbRepository.open({ name: `mig-${++dbSeq}`, version: 3 })).rejects.toThrow('Migration 3 fehlt.');
+  });
+
+  it('hebt einen Bestand der Version 1 auf Version 2: Vorhaben kommen dazu, alles andere bleibt', async () => {
+    const name = `mig-${++dbSeq}`;
+    const old = await IdbRepository.open({ name, version: 1 });
+    await old.commit({ goals: [goal('g1')] });
+    old.close();
+
+    const current = await repo(name);
+    const snapshot = await current.loadSnapshot();
+    expect(snapshot.goals).toEqual([expect.objectContaining({ id: 'g1' })]);
+    expect(snapshot.tasks).toEqual([]);
+    current.close();
+    const raw = await openDB(name);
+    expect(raw.version).toBe(2);
+    expect([...raw.objectStoreNames]).toContain('tasks');
+    raw.close();
   });
 });
 

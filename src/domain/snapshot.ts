@@ -7,6 +7,7 @@ import type {
   HabitEvent,
   Preferences,
   Stored,
+  Task,
   WeeklyReview,
 } from './types';
 
@@ -20,4 +21,5 @@ export interface Snapshot {
   dayRecords: DayRecord[];
   avoidanceItems: Stored<AvoidanceItem>[];
   weeklyReviews: WeeklyReview[];
+  tasks: Stored<Task>[];
 }

@@ -227,6 +227,7 @@ const ROUTES = [
   'gespeichert',
   'installieren',
   'info',
+  'vorhaben-neu',
 ];
 
 test.describe('Barrierefreiheit', () => {

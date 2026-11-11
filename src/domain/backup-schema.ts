@@ -10,6 +10,7 @@ import {
   type HabitEvent,
   type Preferences,
   type Stored,
+  type Task,
   type Tombstone,
   type WeeklyReview,
   type WeeklyReviewEntry,
@@ -21,7 +22,7 @@ import {
  */
 export const BACKUP_FORMAT = 'live-backup';
 export const ENCRYPTED_BACKUP_FORMAT = 'live-backup-encrypted';
-export const BACKUP_FORMAT_VERSION = 1;
+export const BACKUP_FORMAT_VERSION = 2;
 export const ENCRYPTED_FORMAT_VERSION = 1;
 
 export interface BackupFile {
@@ -57,8 +58,14 @@ export class BackupError extends Error {
 /** Hebt eine Datei von Formatversion n−1 auf n (Schlüssel = Zielversion). */
 export type BackupMigration = (file: Record<string, unknown>) => Record<string, unknown>;
 
-/** Bisher gibt es nur Version 1; künftige Formatänderungen bekommen hier ihre Migration. */
-export const backupMigrations: Record<number, BackupMigration> = {};
+/** Version 2 ergänzt die Vorhaben; ältere Dateien bekommen eine leere Liste. */
+export const backupMigrations: Record<number, BackupMigration> = {
+  2: (file) => {
+    const data = file.data;
+    if (typeof data !== 'object' || data === null || Array.isArray(data) || 'tasks' in data) return file;
+    return { ...file, data: { ...data, tasks: [] } };
+  },
+};
 
 export interface ParseOptions {
   currentVersion?: number;
@@ -245,6 +252,10 @@ const REASONS = ['SICK', 'VACATION', 'OTHER'] as const;
 const REVIEW_STATUS = ['COMPLETED', 'SKIPPED'] as const;
 const CUE_CONSISTENCY = ['MOST', 'HALF', 'RARE'] as const;
 const DECISIONS = ['KEEP', 'SMALLER', 'CHANGE_CUE', 'PAUSE'] as const;
+const TASK_STATUS = ['OPEN', 'DONE', 'DROPPED'] as const;
+const AVERSION = ['UNCLEAR', 'BORING', 'FEAR', 'TOO_BIG', 'NO_ENERGY', 'OTHER'] as const;
+const LATE_CHOICES = ['SMALLER_STEP', 'EARLIER_REVIEW', 'CLEARER_START', 'LESS_PARALLEL', 'CLARIFY', 'SKIPPED'] as const;
+const MAX_MINUTES = 6000;
 
 function preferences(v: unknown, path: string): Preferences {
   const o = obj(v, path);
@@ -418,6 +429,36 @@ function weeklyReview(v: unknown, path: string): WeeklyReview {
   };
 }
 
+function task(o: Obj, path: string): Task {
+  const deferrals = arr(o.deferrals ?? [], `${path}.deferrals`).map((v, i) => {
+    const p = `${path}.deferrals[${i}]`;
+    const d = obj(v, p);
+    return { at: iso(d.at, `${p}.at`), from: date(d.from, `${p}.from`), to: date(d.to, `${p}.to`), reason: str(d.reason, `${p}.reason`) };
+  });
+  return {
+    id: id(o.id, `${path}.id`),
+    title: str(o.title, `${path}.title`),
+    deadline: date(o.deadline, `${path}.deadline`),
+    plannedStart: date(o.plannedStart, `${path}.plannedStart`),
+    ...opt(o, 'plannedStartTime', path, time),
+    firstStep: str(o.firstStep, `${path}.firstStep`),
+    estimateMinutes: int(o.estimateMinutes, `${path}.estimateMinutes`, 1, MAX_MINUTES),
+    ...opt(o, 'reviewOn', path, date),
+    ...opt(o, 'reviewDoneOn', path, date),
+    status: oneOf(o.status, TASK_STATUS, `${path}.status`),
+    ...opt(o, 'startedOn', path, date),
+    ...opt(o, 'startAversion', path, (x, p) => int(x, p, 0, 4)),
+    ...opt(o, 'startReason', path, (x, p) => oneOf(x, AVERSION, p)),
+    ...opt(o, 'lateStartChoice', path, (x, p) => oneOf(x, LATE_CHOICES, p)),
+    deferrals,
+    ...opt(o, 'finishedOn', path, date),
+    ...opt(o, 'actualMinutes', path, (x, p) => int(x, p, 1, MAX_MINUTES)),
+    createdOn: date(o.createdOn, `${path}.createdOn`),
+    createdAt: iso(o.createdAt, `${path}.createdAt`),
+    updatedAt: iso(o.updatedAt, `${path}.updatedAt`),
+  };
+}
+
 function list<T>(data: Obj, key: string, read: (v: unknown, path: string) => T): T[] {
   return arr(data[key], `data.${key}`).map((v, i) => read(v, `data.${key}[${i}]`));
 }
@@ -444,6 +485,7 @@ export function validateSnapshot(raw: unknown): Snapshot {
     dayRecords: list(data, 'dayRecords', dayRecord),
     avoidanceItems: list(data, 'avoidanceItems', (v, p) => stored(v, p, avoidanceItem)),
     weeklyReviews: list(data, 'weeklyReviews', weeklyReview),
+    tasks: list(data, 'tasks', (v, p) => stored(v, p, task)),
   };
 
   unique(snapshot.goals, (g) => g.id, 'data.goals');
@@ -455,6 +497,10 @@ export function validateSnapshot(raw: unknown): Snapshot {
   unique(snapshot.avoidanceItems, (a) => a.id, 'data.avoidanceItems');
   unique(snapshot.weeklyReviews, (r) => r.id, 'data.weeklyReviews');
   unique(snapshot.weeklyReviews, (r) => r.weekStart, 'data.weeklyReviews');
+  unique(snapshot.tasks, (t) => t.id, 'data.tasks');
+  for (const t of snapshot.tasks) {
+    if (!isTombstone(t) && t.status === 'DONE' && t.finishedOn === undefined) fail('data.tasks', `Abschluss fehlt: ${t.id}`);
+  }
 
   // Keine verwaisten Datensätze: Bezüge zeigen auf lebende Ziele und Habits.
   const goals = new Set(snapshot.goals.filter((g) => !isTombstone(g)).map((g) => g.id));
@@ -493,6 +539,7 @@ export interface BackupSummary {
   goals: number;
   habits: number;
   checkIns: number;
+  tasks: number;
   /** Zeitraum der Check-ins, falls vorhanden */
   from?: LocalDate;
   to?: LocalDate;
@@ -508,6 +555,7 @@ export function backupSummary(backup: BackupFile): BackupSummary {
     goals: data.goals.filter((g) => !isTombstone(g)).length,
     habits: data.habits.filter((h) => !isTombstone(h)).length,
     checkIns: checkIns.length,
+    tasks: data.tasks.filter((t) => !isTombstone(t)).length,
     ...(dates.length ? { from: dates[0]!, to: dates[dates.length - 1]! } : {}),
   };
 }

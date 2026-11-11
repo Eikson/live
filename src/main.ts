@@ -28,6 +28,7 @@ import { installScreen } from './ui/screens/install';
 import { onboardingScreen } from './ui/screens/onboarding';
 import { planScreen } from './ui/screens/plan';
 import { settingsScreen } from './ui/screens/settings';
+import { taskEditScreen, taskNewScreen } from './ui/screens/task-form';
 import { todayScreen } from './ui/screens/today';
 import { createShell, type Shell } from './ui/shell';
 
@@ -49,6 +50,8 @@ const SCREENS: Record<Route, Screen> = {
   daten: dataScreen,
   gespeichert: storedScreen,
   installieren: installScreen,
+  'vorhaben-neu': taskNewScreen,
+  'vorhaben-bearbeiten': taskEditScreen,
 };
 
 /** Seiten, die bei einem Tageswechsel neu aufgebaut werden (keine Formulare mit offenen Eingaben). */

@@ -12,6 +12,7 @@ import type { AppContext } from './context';
 import { derive } from './derived';
 import { hintFor } from './hint';
 import { reviewCardFor } from './review';
+import { todayTasks, type TaskItem } from './tasks';
 
 export interface TodayCard {
   habit: Habit;
@@ -46,6 +47,8 @@ export interface TodayView {
   hasBackup: boolean;
   /** Der angezeigte Tag ist abgeschlossen. */
   dayClosed: boolean;
+  /** Vorhaben, deren Start erreicht ist oder die laufen; nur für heute. */
+  tasks: TaskItem[];
 }
 
 /**
@@ -89,6 +92,7 @@ export async function loadTodayView(ctx: AppContext, requestedDay?: LocalDate): 
     preferences: data.preferences,
     cards,
     dayClosed,
+    tasks: day === now ? todayTasks(data.tasks, now) : [],
     backupDue: day === now && backupReminderDue(data.preferences, now),
     hasBackup: data.preferences.lastBackupAt !== undefined,
     eveningCard: day === now && !dayClosed && isEveningCardTime(minutesOfDay(ctx.clock), data.preferences.eveningCardFrom),

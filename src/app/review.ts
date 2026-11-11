@@ -13,6 +13,7 @@ import {
   type SuggestionRule,
 } from '../domain/review';
 import { evaluatePatterns } from '../domain/scoring/patterns';
+import { weekProof } from '../domain/task';
 import type { Habit, Preferences, WeeklyReview, WeeklyReviewEntry } from '../domain/types';
 import { today } from '../platform/clock';
 import type { AppContext } from './context';
@@ -41,6 +42,8 @@ export interface ReviewView {
   automaticity: boolean;
   /** Die Hinweis-Bedingung traf in dieser Woche zu (Abschnitt 4.5). */
   hint: boolean;
+  /** Beleg aus den Vorhaben der Woche: begonnen und davon nicht später als geplant. */
+  taskProof?: { started: number; onTime: number };
 }
 
 /** Habits, die in den Rückblick gehören: heute aktiv und schon vor dem Rückblickstag in der Woche aktiv. */
@@ -80,7 +83,9 @@ function buildView(data: LiveData, now: LocalDate): ReviewView {
       : due && habits.length > 0
         ? 'DUE'
         : 'NONE';
+  const taskProof = weekProof(data.tasks, latest.from, minDate(latest.to, now));
   return {
+    ...(taskProof ? { taskProof } : {}),
     today: now,
     preferences: prefs,
     nextDay: nextReviewDay(now, prefs.reviewWeekday),

@@ -4,8 +4,8 @@
  */
 const JSON_TYPE = 'application/json';
 
-export function downloadText(fileName: string, text: string): void {
-  const url = URL.createObjectURL(new Blob([text], { type: JSON_TYPE }));
+export function downloadText(fileName: string, text: string, type: string = JSON_TYPE): void {
+  const url = URL.createObjectURL(new Blob([text], { type }));
   const link = document.createElement('a');
   link.href = url;
   link.download = fileName;

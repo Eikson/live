@@ -30,6 +30,10 @@ export const migrations: Record<number, Migration> = {
     reviews.createIndex('weekStart', 'weekStart', { unique: true });
     db.createObjectStore('meta', { keyPath: 'key' });
   },
+  // Vorhaben: einmalige Aufgaben mit Deadline.
+  2: (db) => {
+    db.createObjectStore('tasks', { keyPath: 'id' });
+  },
 };
 
 export interface OpenOptions {
